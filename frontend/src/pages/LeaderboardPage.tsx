@@ -1,7 +1,40 @@
 // src/pages/Leaderboard.tsx
-import React from "react";
+import React, { useEffect, useState } from "react";
+import { supabase } from "../lib/supabaseClient";
 
 const Leaderboard: React.FC = () => {
+  const [users, setUsers] = useState<any[]>([]);
+
+  useEffect(() => {
+    // 1. Fungsi untuk mengambil data awal
+    const fetchLeaderboard = async () => {
+      const { data, error } = await supabase
+        .from('users') // Sesuaikan dengan nama tabel user/skor kamu
+        .select('id, name, xp')
+        .order('xp', { ascending: false })
+        .limit(10);
+
+      if (error) console.error("Error fetching leaderboard:", error);
+      else setUsers(data || []);
+    };
+
+    fetchLeaderboard();
+
+    // 2. Implementasi Real-time
+    const channel = supabase
+      .channel('public:users')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'users' }, (payload) => {
+        
+        fetchLeaderboard();
+      })
+      .subscribe();
+
+   
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
   return (
     <div style={style.container}>
       <h1 style={style.title}>Leaderboard</h1>
@@ -12,30 +45,14 @@ const Leaderboard: React.FC = () => {
       <div className="responsive-content" style={style.content}>
         {/* Area Podium */}
         <div className="responsive-podium" style={style.podium}>
-          {/* Juara 2 */}
+          {/* Juara 2, 1, 3 bisa kamu mapping dari state 'users' agar dinamis */}
           <div style={{ ...style.podiumBlock, ...style.second }}>
-            <div style={style.profileIconContainer}>
-              <div style={style.userAvatarHead}></div>
-              <div style={style.userAvatarBody}></div>
-            </div>
             <span style={style.rank}>2</span>
           </div>
-
-          {/* Juara 1 */}
           <div style={{ ...style.podiumBlock, ...style.first }}>
-            <div style={style.profileIconContainer}>
-              <div style={style.userAvatarHead}></div>
-              <div style={style.userAvatarBody}></div>
-            </div>
             <span style={style.rank}>1</span>
           </div>
-
-          {/* Juara 3 */}
           <div style={{ ...style.podiumBlock, ...style.third }}>
-            <div style={style.profileIconContainer}>
-              <div style={style.userAvatarHead}></div>
-              <div style={style.userAvatarBody}></div>
-            </div>
             <span style={style.rank}>3</span>
           </div>
         </div>
@@ -44,16 +61,12 @@ const Leaderboard: React.FC = () => {
         <div className="responsive-box" style={style.box}>
           <h2 style={style.boxTitle}>Top Players</h2>
           <ul style={style.userList}>
-            <li style={style.listItem}><span>User A</span> <strong>980 pts</strong></li>
-            <li style={style.listItem}><span>User B</span> <strong>870 pts</strong></li>
-            <li style={style.listItem}><span>User C</span> <strong>760 pts</strong></li>
-            <li style={style.listItem}><span>User D</span> <strong>700 pts</strong></li>
-            <li style={style.listItem}><span>User E</span> <strong>650 pts</strong></li>
+            {users.map((user) => (
+              <li key={user.id} style={style.listItem}>
+                <span>{user.name}</span> <strong>{user.xp} pts</strong>
+              </li>
+            ))}
           </ul>
-          <div style={style.seeMore}>
-            <span>Lihat lebih banyak</span>
-            <div style={style.arrow}></div>
-          </div>
         </div>
       </div>
 
@@ -106,7 +119,7 @@ const style = {
   },
   subtitle: {
     color: "#7f8c8d",
-    marginBottom: "5.5rem", // PERBAIKAN: Jarak diperbesar (sebelumnya 4rem) untuk mengakomodasi tinggi icon + animasinya
+    marginBottom: "5.5rem", 
   },
   content: {
     display: "flex",

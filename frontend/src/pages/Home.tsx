@@ -1,5 +1,4 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
 import logo from '../assets/warnalogo.png';
 import FiturUtama from '../components/FiturUtama';
 import PratinjauMateri from '../components/PratinjauMateri';
@@ -7,7 +6,9 @@ import StatistikKomunitas from '../components/StatistikKomunitas';
 import FooterUtama from '../components/FooterUtama';
 
 function Home() {
-  const navigate = useNavigate();
+  const scrollKeMisi = () => {
+    document.getElementById('tahapan-misi')?.scrollIntoView({ behavior: 'smooth' });
+  };
 
   return (
     <>
@@ -26,7 +27,7 @@ function Home() {
             <button 
               style={gaya.tombolCta} 
               className="tombol-efek-ringan tombol-cta-mobile"
-              onClick={() => navigate('/daftar')}
+              onClick={scrollKeMisi}
             >
               Mulai Explore
             </button>

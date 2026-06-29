@@ -14,6 +14,21 @@
   box-sizing: border-box;
 }
 
+button {
+  outline: none;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+button:focus {
+  outline: none;
+}
+
+button:focus-visible {
+  outline: 2px solid var(--primary-purple);
+  outline-offset: 2px;
+}
+
 body {
   font-family: 'Plus Jakarta Sans', 'Segoe UI', Roboto, sans-serif;
   background-color: var(--bg-gray);
@@ -21,44 +36,38 @@ body {
   overflow-x: hidden;
 }
 
-@media (maxWidth: 968px) {
-  header > div {
-    padding: 0 4px !important;
-  }
-  
-  main {
-    padding: 120px 20px 40px 20px !important;
-    min-height: auto !important;
-  }
-
-  main > div {
-    flex-direction: column-reverse !important;
-    gap: 40px !important;
+@media (max-width: 968px) {
+  .grid-footer-cta {
+    flex-direction: column !important;
     text-align: center !important;
+    align-items: center !important;
   }
 
-  main h1 {
-    font-size: 36px !important;
+  .grid-footer-mobile {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 40px !important;
   }
 
-  main p {
-    font-size: 16px !important;
-    margin: 0 auto 32px auto !important;
+  .kolom-brand-footer {
+    align-items: flex-start !important;
   }
 
-  main button {
-    width: 100% !important;
-    padding: 16px 0 !important;
+  .list-link-footer {
+    align-items: flex-start !important;
   }
+}
 
-  footer > div > div:nth-child(2) {
+@media (max-width: 640px) {
+  .grid-footer-mobile {
     grid-template-columns: 1fr !important;
     gap: 32px !important;
-    text-align: center !important;
   }
 
-  footer div {
-    justify-content: center !important;
+  .kolom-brand-footer {
+    align-items: center !important;
+  }
+
+  .list-link-footer {
     align-items: center !important;
   }
 }
@@ -148,20 +157,6 @@ body {
     padding: 16px 0 !important;
     justify-content: center !important;
   }
-
-  .grid-footer-mobile {
-    grid-template-columns: 1fr !important;
-    gap: 32px !important;
-    text-align: center !important;
-  }
-
-  .kolom-brand-footer {
-    align-items: center !important;
-  }
-
-  .list-link-footer {
-    align-items: center !important;
-  }
 }
 
 @media (max-width: 968px) {
@@ -215,15 +210,6 @@ body {
   .simpul-peta-item div {
     align-items: center !important;
   }
-
-  .baris-papan-blur div {
-    flex-direction: column !important;
-    gap: 12px !important;
-  }
-  
-  .baris-papan-blur .list-link-footer {
-    flex-direction: row !important;
-  }
 }
 
 @keyframes jalanWaktu {
@@ -235,15 +221,6 @@ body {
   .blok-cta-feedback {
     flex-direction: column !important;
     gap: 16px !important;
-    text-align: center !important;
-  }
-  
-  .blok-cta-feedback div {
-    width: 100% !important;
-  }
-
-  .blok-cta-feedback a {
-    flex: 1 !important;
     text-align: center !important;
   }
 }

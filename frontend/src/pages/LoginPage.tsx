@@ -2,25 +2,35 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import logo from '../assets/warnalogo.png';
 import laptop from '../assets/laptop.png';
+import { supabase } from '../lib/supabaseClient';
 
 function LoginPage() {
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
   const [lihatPassword, setLihatPassword] = useState(false);
 
-  const tanganiLogin = (e: React.FormEvent) => {
+  const kembali = () => navigate(-1);
+
+  const tanganiLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    navigate('/');
+    setError('');
+    setLoading(true);
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) setError(error.message);
+    else navigate('/dashboard');
+    setLoading(false);
   };
 
   return (
     <div style={styles.halamanWrapper}>
-      <div style={styles.kontainerUtama}>
-        
+      <div style={styles.kontainerUtama} className="login-container">
+
         <div style={styles.sisiKiriIlustrasi} className="login-sisi-kiri">
-          <button onClick={() => navigate('/')} style={styles.btnKembaliDiUngu}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '6px' }}>
+          <button onClick={kembali} style={styles.btnKembali}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '6px' }}>
               <line x1="19" y1="12" x2="5" y2="12"></line>
               <polyline points="12 19 5 12 12 5"></polyline>
             </svg>
@@ -34,20 +44,18 @@ function LoginPage() {
               </div>
               <span style={styles.teksLogo}>BrainQuest</span>
             </div>
-
-            <h1 style={styles.judulKiri}>Lanjutkan Perjalanan Belajarmu</h1>
-            <p style={styles.subKiri}>Masuk untuk melanjutkan progres, menyelesaikan quest dan meningkatkan peringkatmu.</p>
-
+            <h1 style={styles.judulKiri}>Selamat Datang Kembali! 👋</h1>
+            <p style={styles.subKiri}>Masuk dan lanjutkan perjalanan belajarmu. Raih XP lebih banyak hari ini!</p>
             <div style={styles.wadahMockup}>
-              <img src={laptop} alt="BrainQuest Dashboard Mockup" style={styles.gambarMockupUtama} />
+              <img src={laptop} alt="BrainQuest Dashboard" style={styles.gambarMockup} />
             </div>
           </div>
         </div>
 
         <div style={styles.sisiKananForm} className="login-sisi-kanan">
           <div style={styles.blokForm}>
-            <button type="button" onClick={() => navigate('/')} style={styles.btnKembaliMobile} className="btn-kembali-auth-mobile">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '6px' }}>
+            <button type="button" onClick={kembali} style={styles.btnKembaliMobile} className="btn-kembali-auth-mobile">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '6px' }}>
                 <line x1="19" y1="12" x2="5" y2="12"></line>
                 <polyline points="12 19 5 12 12 5"></polyline>
               </svg>
@@ -55,11 +63,13 @@ function LoginPage() {
             </button>
 
             <div style={styles.headerForm}>
-              <h2 style={styles.judulKanan}>Selamat Datang Kembali 👋</h2>
-              <p style={styles.subKanan}>Log in untuk melanjutkan perjalanan belajarmu</p>
+              <h2 style={styles.judulKanan}>Masuk ke Akun</h2>
+              <p style={styles.subKanan}>Belum punya akun? <Link to="/daftar" style={styles.linkDaftar}>Daftar gratis</Link></p>
             </div>
 
             <form onSubmit={tanganiLogin} style={styles.formElement}>
+              {error ? <p style={{ color: '#dc2626', marginBottom: '12px', fontSize: '14px' }}>{error}</p> : null}
+
               <div style={styles.grupInput}>
                 <label style={styles.labelTeks}>Email</label>
                 <div style={styles.wadahField}>
@@ -68,9 +78,9 @@ function LoginPage() {
                       <rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>
                     </svg>
                   </span>
-                  <input 
-                    type="email" 
-                    placeholder="masukan gmail anda" 
+                  <input
+                    type="email"
+                    placeholder="masukan email anda"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     style={styles.inputField}
@@ -84,20 +94,20 @@ function LoginPage() {
                 <div style={styles.wadahField}>
                   <span style={styles.ikonSamping}>
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+                      <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
                     </svg>
                   </span>
-                  <input 
-                    type={lihatPassword ? 'text' : 'password'} 
-                    placeholder="masukan password" 
+                  <input
+                    type={lihatPassword ? 'text' : 'password'}
+                    placeholder="masukan password anda"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     style={styles.inputField}
                     required
                   />
-                  <button 
-                    type="button" 
-                    onClick={() => setLihatPassword(!lihatPassword)} 
+                  <button
+                    type="button"
+                    onClick={() => setLihatPassword(!lihatPassword)}
                     style={styles.tombolMata}
                     aria-label="Toggle password visibility"
                   >
@@ -108,17 +118,10 @@ function LoginPage() {
                 </div>
               </div>
 
-              <button type="submit" style={styles.btnCtaMasuk} className="tombol-efek-ringan">
-                Log in
+              <button type="submit" style={styles.btnMasuk} className="tombol-efek-ringan" disabled={loading}>
+                {loading ? 'Memuat...' : 'Masuk'}
               </button>
             </form>
-
-            <button type="button" style={styles.btnGoogleMasuk}>
-              <svg width="18" height="18" viewBox="0 0 24 24" style={{marginRight: '12px'}}>
-                <path fill="#EA4335" d="M12.24 10.285V14.4h6.887c-.275 1.565-1.88 4.604-6.887 4.604-4.33 0-7.866-3.577-7.866-8s3.536-8 7.866-8c2.46 0 4.105 1.025 5.047 1.926l3.227-3.227C18.416 1.432 15.58 0 12.24 0 5.58 0 0 5.58 0 12.24s5.58 12.24 12.24 12.24c6.96 0 11.58-4.894 11.58-11.76 0-.79-.086-1.397-.19-1.937H12.24z"/>
-              </svg>
-              Masuk dengan Google
-            </button>
 
             <p style={styles.teksBawah}>
               Belum punya akun? <Link to="/daftar" style={styles.linkDaftar}>Daftar sekarang</Link>
@@ -153,15 +156,34 @@ const styles = {
   halamanWrapper: {
     width: '100%',
     minHeight: '100vh',
-    backgroundColor: '#ffffff',
+    backgroundColor: 'var(--bg-gray)',
     display: 'flex',
     justifyContent: 'center',
     alignItems: 'center',
-    position: 'relative',
-    zIndex: 1010,
   } as React.CSSProperties,
 
-  btnKembaliDiUngu: {
+  kontainerUtama: {
+    width: '100%',
+    minHeight: '100vh',
+    display: 'flex',
+    backgroundColor: '#ffffff',
+  } as React.CSSProperties,
+
+  sisiKiriIlustrasi: {
+    flex: '0 0 35%',
+    backgroundColor: 'var(--primary-purple)',
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: '40px',
+    position: 'relative',
+    overflow: 'hidden',
+    borderTopRightRadius: '32px',
+    borderBottomRightRadius: '32px',
+    boxShadow: '4px 0 25px rgba(244, 166, 35, 0.2)',
+  } as React.CSSProperties,
+
+  btnKembali: {
     position: 'absolute',
     top: '32px',
     left: '32px',
@@ -175,30 +197,8 @@ const styles = {
     cursor: 'pointer',
     display: 'flex',
     alignItems: 'center',
-    transition: 'all 0.2s ease',
     backdropFilter: 'blur(4px)',
     WebkitBackdropFilter: 'blur(4px)',
-  } as React.CSSProperties,
-
-  kontainerUtama: {
-    width: '100%',
-    minHeight: '100vh',
-    display: 'flex',
-    backgroundColor: '#ffffff',
-  } as React.CSSProperties,
-
-  sisiKiriIlustrasi: {
-    flex: '0 0 35%',
-    backgroundColor: '#F4A623',
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: '40px',
-    position: 'relative',
-    overflow: 'hidden',
-    borderTopRightRadius: '32px',
-    borderBottomRightRadius: '32px',
-    boxShadow: '4px 0 25px rgba(244, 166, 35, 0.2)',
   } as React.CSSProperties,
 
   kontenIlustrasi: {
@@ -215,7 +215,7 @@ const styles = {
     alignItems: 'center',
     justifyContent: 'flex-start',
     gap: '12px',
-    marginBottom: '40px',
+    marginBottom: '24px',
     marginLeft: '-45px',
   } as React.CSSProperties,
 
@@ -267,7 +267,7 @@ const styles = {
     alignItems: 'center',
   } as React.CSSProperties,
 
-  gambarMockupUtama: {
+  gambarMockup: {
     width: '100%',
     height: 'auto',
     maxWidth: '360px',
@@ -315,7 +315,7 @@ const styles = {
   judulKanan: {
     fontSize: '28px',
     fontWeight: 800,
-    color: '#2d3748',
+    color: 'var(--text-dark)',
     marginBottom: '8px',
   } as React.CSSProperties,
 
@@ -340,13 +340,13 @@ const styles = {
   labelTeks: {
     fontSize: '14px',
     fontWeight: 700,
-    color: '#2d3748',
+    color: 'var(--text-dark)',
   } as React.CSSProperties,
 
   wadahField: {
     width: '100%',
     height: '56px',
-    border: '2px solid #F4A623',
+    border: '2px solid var(--primary-purple)',
     borderRadius: '16px',
     display: 'flex',
     alignItems: 'center',
@@ -369,7 +369,7 @@ const styles = {
     outline: 'none',
     padding: '0 18px',
     fontSize: '15px',
-    color: '#2d3748',
+    color: 'var(--text-dark)',
     fontWeight: 500,
     backgroundColor: 'transparent',
   } as React.CSSProperties,
@@ -386,10 +386,10 @@ const styles = {
     padding: 0,
   } as React.CSSProperties,
 
-  btnCtaMasuk: {
+  btnMasuk: {
     width: '100%',
     height: '54px',
-    backgroundColor: '#F4A623',
+    backgroundColor: 'var(--primary-purple)',
     color: '#ffffff',
     border: 'none',
     borderRadius: '16px',
@@ -398,23 +398,6 @@ const styles = {
     cursor: 'pointer',
     marginTop: '12px',
     boxShadow: '0 8px 24px rgba(244, 166, 35, 0.3)',
-  } as React.CSSProperties,
-
-  btnGoogleMasuk: {
-    width: '100%',
-    height: '54px',
-    backgroundColor: '#ffffff',
-    color: '#64748b',
-    border: '1px solid #e2e8f0',
-    borderRadius: '100px',
-    fontSize: '15px',
-    fontWeight: 600,
-    cursor: 'pointer',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: '20px',
-    boxShadow: '0 4px 12px rgba(0,0,0,0.02)',
   } as React.CSSProperties,
 
   teksBawah: {
@@ -426,7 +409,7 @@ const styles = {
   } as React.CSSProperties,
 
   linkDaftar: {
-    color: '#F4A623',
+    color: 'var(--primary-purple)',
     textDecoration: 'none',
     fontWeight: 700,
   } as React.CSSProperties,

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { supabase } from '../lib/supabaseClient';
 import logo from '../assets/warnalogo.png';
 import laptop from '../assets/laptop.png';
 
@@ -9,11 +10,50 @@ function SignupPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [lihatPassword, setLihatPassword] = useState(false);
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const tanganiDaftar = (e: React.FormEvent) => {
-    e.preventDefault();
-    navigate('/login');
-  };
+  const kembali = () => navigate(-1);
+
+  const tanganiDaftar = async (e: React.FormEvent) => {
+  e.preventDefault();
+  setError('');
+  setLoading(true);
+
+  try {
+    // 1. Supabase Auth membuat akun (email & password)
+    const { data, error: authError } = await supabase.auth.signUp({
+      email,
+      password,
+    });
+
+    if (authError) throw authError;
+
+    // 2. JIKA (dan hanya jika) Auth berhasil, baru simpan ke tabel 'users'
+    if (data.user) {
+      const { error: dbError } = await supabase
+        .from('users')
+        .insert([
+          { 
+            auth_id: data.user.id, // ID unik dari Supabase Auth
+            username: nama,         
+            email: email,
+            password: password,
+            total_points: 0        
+          }
+        ]);
+
+      if (dbError) throw dbError;
+    }
+
+    alert("Pendaftaran berhasil!");
+    navigate('/login'); 
+  } catch (err: any) {
+    setError(err.message || 'Pendaftaran gagal.');
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <div style={styles.halamanWrapper}>
@@ -21,8 +61,8 @@ function SignupPage() {
         
         <div style={styles.sisiKiriForm} className="signup-sisi-kiri-form">
           <div style={styles.blokForm}>
-            <button type="button" onClick={() => navigate('/')} style={styles.btnKembaliMobile} className="btn-kembali-auth-mobile">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '6px' }}>
+            <button type="button" onClick={kembali} style={styles.btnKembaliMobile} className="btn-kembali-auth-mobile">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '6px' }}>
                 <line x1="19" y1="12" x2="5" y2="12"></line>
                 <polyline points="12 19 5 12 12 5"></polyline>
               </svg>
@@ -35,6 +75,7 @@ function SignupPage() {
             </div>
 
             <form onSubmit={tanganiDaftar} style={styles.formElement}>
+              {error ? <p style={{ color: '#dc2626', marginBottom: '12px', fontSize: '14px' }}>{error}</p> : null}
               <div style={styles.grupInput}>
                 <label style={styles.labelTeks}>Nama Lengkap</label>
                 <div style={styles.wadahField}>
@@ -102,8 +143,8 @@ function SignupPage() {
                 </div>
               </div>
 
-              <button type="submit" style={styles.btnCtaMasuk} className="tombol-efek-ringan">
-                Daftar Akun
+              <button type="submit" style={styles.btnCtaMasuk} className="tombol-efek-ringan" disabled={loading}>
+                {loading ? 'Membuat akun...' : 'Daftar Akun'}
               </button>
             </form>
 
@@ -114,8 +155,8 @@ function SignupPage() {
         </div>
 
         <div style={styles.sisiKananIlustrasi} className="signup-sisi-kanan-ungu">
-          <button onClick={() => navigate('/')} style={styles.btnKembaliDiUnguKanan}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '6px' }}>
+          <button onClick={kembali} style={styles.btnKembaliDiUnguKanan}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '6px' }}>
               <line x1="19" y1="12" x2="5" y2="12"></line>
               <polyline points="12 19 5 12 12 5"></polyline>
             </svg>

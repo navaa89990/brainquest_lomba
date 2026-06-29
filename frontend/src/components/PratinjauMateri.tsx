@@ -1,63 +1,45 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { supabase } from '../lib/supabaseClient';
+
+interface Materi {
+  id: number;
+  title: string;
+  content: string;
+  category: string;
+  img?: string;
+  status?: string;
+}
 
 function PratinjauMateri() {
   const navigate = useNavigate();
   const [kategoriAktif, setKategoriAktif] = useState<string>('Semua');
   const [kartuAktif, setKartuAktif] = useState<number | null>(null);
   const [modalBuka, setModalBuka] = useState(false);
-  const [materiTerpilih, setMateriTerpilih] = useState<any>(null);
+  const [materiTerpilih, setMateriTerpilih] = useState<Materi | null>(null);
+  const [listMateri, setListMateri] = useState<Materi[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const daftarKategori = ['Semua', 'Pemrograman', 'Pengetahuan Umum', 'Bahasa Indonesia', 'Bahasa Inggris'];
 
-  const listMateri = [
-    {
-      id: 1,
-      kategori: 'Pemrograman',
-      level: 'Level 01',
-      judul: 'Dasar Pemrograman Web',
-      totalMisi: '5 Misi Aktif',
-      xp: '+150 XP',
-      deskripsi: 'Uji pemahamanmu tentang anatomi HTML, fungsi tag dasar, hingga menyusun struktur halaman web.',
-      topik: ['Struktur Tag', 'Flexbox & Grid', 'Responsive Design']
-    },
-    {
-      id: 2,
-      kategori: 'Pengetahuan Umum',
-      level: 'Level 01',
-      judul: 'Eksplorasi Tata Surya',
-      totalMisi: '6 Misi Aktif',
-      xp: '+180 XP',
-      deskripsi: 'Tantang pengetahuanmu tentang karakteristik planet, teori orbit, dan satelit alami di jagat raya.',
-      topik: ['Karakteristik Planet', 'Teori Orbit', 'Satelit Alami']
-    },
-    {
-      id: 3,
-      kategori: 'Bahasa Indonesia',
-      level: 'Level 01',
-      judul: 'Struktur & Resensi Teks',
-      totalMisi: '4 Misi Aktif',
-      xp: '+120 XP',
-      deskripsi: 'Asah kemampuan membedakan fakta dan opini serta struktur kebahasaan dalam teks eksposisi.',
-      topik: ['Ide Pokok', 'Kebahasaan Teks', 'Fakta & Opini']
-    },
-    {
-      id: 4,
-      kategori: 'Bahasa Inggris',
-      level: 'Level 01',
-      judul: 'Mastering Tenses & Dialogue',
-      totalMisi: '6 Misi Aktif',
-      xp: '+200 XP',
-      deskripsi: 'Uji pemahaman penggunaan Past Tense dan aturan percakapan formal dalam bahasa Inggris.',
-      topik: ['Present Tense', 'Past Tense', 'Conversation Rules']
-    }
-  ];
+  useEffect(() => {
+    const fetchMateri = async () => {
+      setLoading(true);
+      const { data } = await supabase
+        .from('materials')
+        .select('id, title, content, category, status, img')
+        .is('parent_id', null);
+      setListMateri(data || []);
+      setLoading(false);
+    };
+    fetchMateri();
+  }, []);
 
-  const materiTersaring = kategoriAktif === 'Semua' 
-    ? listMateri 
-    : listMateri.filter(item => item.kategori === kategoriAktif);
+  const materiTersaring = kategoriAktif === 'Semua'
+    ? listMateri
+    : listMateri.filter(item => item.category === kategoriAktif);
 
-  const bukaModal = (materi: any) => {
+  const bukaModal = (materi: Materi) => {
     setMateriTerpilih(materi);
     setModalBuka(true);
     document.body.style.overflow = 'hidden';
@@ -70,11 +52,11 @@ function PratinjauMateri() {
 
   const aksiTeaserGratis = () => {
     document.body.style.overflow = 'auto';
-    navigate('/kuis', { state: { dariTeaser: true, levelId: materiTerpilih.id, namaLevel: materiTerpilih.judul } });
+    if (materiTerpilih) navigate('/kuis', { state: { dariTeaser: true, levelId: materiTerpilih.id, namaLevel: materiTerpilih.title } });
   };
 
   return (
-    <section style={gaya.seksiMateri}>
+    <section id="tahapan-misi" style={gaya.seksiMateri}>
       <div style={gaya.kontenMateri}>
         
         <div style={gaya.blokText}>
@@ -101,16 +83,14 @@ function PratinjauMateri() {
         </div>
 
         <div style={gaya.listGaris}>
-          {materiTersaring.map((materi, indeks) => {
+          {loading ? (
+            <p style={{ color: 'var(--text-muted)', fontSize: '15px' }}>Memuat materi...</p>
+          ) : materiTersaring.map((materi, indeks) => {
             const sedangHover = kartuAktif === indeks;
-
             return (
-              <div 
-                key={materi.id} 
-                style={{
-                  ...gaya.barisMateri,
-                  ...(sedangHover ? gaya.barisMateriHover : {})
-                }}
+              <div
+                key={materi.id}
+                style={{ ...gaya.barisMateri, ...(sedangHover ? gaya.barisMateriHover : {}) }}
                 className="baris-materi-item"
                 onMouseEnter={() => setKartuAktif(indeks)}
                 onMouseLeave={() => setKartuAktif(null)}
@@ -118,26 +98,23 @@ function PratinjauMateri() {
                 <div style={gaya.infoKiri} className="info-kiri-materi">
                   <span style={{
                     ...gaya.badgeLevel,
-                    backgroundColor: sedangHover ? 'var(--primary-purple)' : 'rgba(146, 0, 239, 0.06)',
+                    backgroundColor: sedangHover ? 'var(--primary-purple)' : 'rgba(244, 166, 35, 0.08)',
                     color: sedangHover ? '#ffffff' : 'var(--primary-purple)'
                   }}>
-                    {materi.level}
+                    {materi.category}
                   </span>
                   <div style={gaya.detailTeks}>
-                    <span style={gaya.teksKategori}>{materi.kategori}</span>
-                    <h3 style={gaya.judulMateri}>{materi.judul}</h3>
-                    <span style={gaya.jumlahMisi}>{materi.totalMisi}</span>
+                    <h3 style={gaya.judulMateri}>{materi.title}</h3>
+                    <span style={gaya.jumlahMisi}>{materi.content.split(' ').slice(0, 12).join(' ')}...</span>
                   </div>
                 </div>
-
                 <div style={gaya.infoKanan} className="info-kanan-materi">
-                  <span style={gaya.teksXp}>{materi.xp}</span>
-                  <button 
+                  <button
                     style={{
                       ...gaya.tombolAksi,
                       backgroundColor: sedangHover ? 'var(--primary-purple)' : '#f0f2f5',
                       color: sedangHover ? '#ffffff' : 'var(--text-dark)'
-                    }} 
+                    }}
                     className="tombol-aksi-materi tombol-efek-ringan"
                     onClick={() => bukaModal(materi)}
                   >
@@ -154,35 +131,37 @@ function PratinjauMateri() {
         <div style={gaya.overlayModal} onClick={tutupModal}>
           <div style={gaya.kotakModal} onClick={(e) => e.stopPropagation()}>
             <button style={gaya.tombolTutup} onClick={tutupModal}>&times;</button>
-            
+
             <div style={gaya.modalHeader}>
-              <span style={gaya.modalBadge}>{materiTerpilih.kategori} • {materiTerpilih.level}</span>
-              <h3 style={gaya.modalJudul}>{materiTerpilih.judul}</h3>
-              <p style={gaya.modalXp}>Potensi Hadiah: <span style={{color: '#27c93f'}}>{materiTerpilih.xp}</span></p>
+              <span style={gaya.modalBadge}>{materiTerpilih.category}</span>
+              <h3 style={gaya.modalJudul}>{materiTerpilih.title}</h3>
             </div>
 
             <div style={gaya.modalBody}>
-              <p style={gaya.modalDeskripsi}>{materiTerpilih.deskripsi}</p>
-              <div style={gaya.blokTopik}>
-                <p style={{fontWeight: 700, fontSize: '14px', marginBottom: '8px'}}>Materi yang akan diujikan:</p>
-                <div style={gaya.chipContainer}>
-                  {materiTerpilih.topik.map((t: string, i: number) => (
-                    <span key={i} style={gaya.chip}>{t}</span>
-                  ))}
-                </div>
-              </div>
+              <p style={gaya.modalDeskripsi}>{materiTerpilih.content.split(' ').slice(0, 40).join(' ')}...</p>
             </div>
 
             <div style={gaya.modalFooter}>
               <div style={gaya.pesanLimit}>
-                <span style={{fontSize: '20px'}}>🔒</span>
+                <span style={{ fontSize: '20px' }}>🔒</span>
                 <p style={gaya.teksPeringatan}>Kamu sedang dalam mode tamu. Progres kuis dan XP tidak akan disimpan.</p>
               </div>
               <div style={gaya.opsiAuth}>
-                <Link to="/login" style={gaya.btnModalLogin} onClick={() => document.body.style.overflow = 'auto'}>Masuk</Link>
-                <Link to="/daftar" style={gaya.btnModalDaftar} onClick={() => document.body.style.overflow = 'auto'}>Daftar Akun</Link>
+                <Link
+                  to={`/materi/${materiTerpilih.id}`}
+                  style={gaya.btnModalLogin}
+                  onClick={() => document.body.style.overflow = 'auto'}
+                >
+                  Pelajari Materi
+                </Link>
+                <button style={{ ...gaya.btnModalDaftar, border: 'none', cursor: 'pointer' }} onClick={aksiTeaserGratis}>
+                  Coba Kuis Gratis
+                </button>
               </div>
-              <button style={gaya.btnCobaGratis} onClick={aksiTeaserGratis}>Coba Kuis Sampel Gratis</button>
+              <div style={gaya.opsiAuth}>
+                <Link to="/login" style={{ ...gaya.btnModalLogin, flex: 1 }} onClick={() => document.body.style.overflow = 'auto'}>Masuk</Link>
+                <Link to="/daftar" style={{ ...gaya.btnModalDaftar, flex: 2 }} onClick={() => document.body.style.overflow = 'auto'}>Daftar Akun</Link>
+              </div>
             </div>
           </div>
         </div>

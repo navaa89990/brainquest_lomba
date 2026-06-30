@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { supabase } from '../lib/supabaseClient';
+import { useAuth } from '../lib/useAuth';
+import { apiService } from '../lib/apiService';
 
 interface Materi {
   id: number;
@@ -15,65 +16,39 @@ interface Materi {
 function DetailMateriPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
 
   const [materi, setMateri] = useState<Materi | null>(null);
   const [semuaMateri, setSemuaMateri] = useState<Materi[]>([]);
   const [kontenAktif, setKontenAktif] = useState<Materi | null>(null);
   const [loading, setLoading] = useState(true);
-  const [sudahLogin, setSudahLogin] = useState(false);
-
-  useEffect(() => {
-    const cekSesi = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      setSudahLogin(!!session);
-    };
-    cekSesi();
-    const { data: listener } = supabase.auth.onAuthStateChange((_e, session) => setSudahLogin(!!session));
-    return () => listener.subscription.unsubscribe();
-  }, []);
 
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
-      const { data: materiData, error } = await supabase
-        .from('materials')
-        .select('id, title, content, category, status, img, parent_id')
-        .eq('id', id)
-        .single();
+      try {
+        const response = await apiService.getMaterialDetail(Number(id));
 
-      if (error || !materiData) { navigate('/materi'); return; }
+        if (!response || !response.id) {
+          navigate('/materi');
+          return;
+        }
 
-      // Tentukan parent: jika materi ini adalah child, ambil parent-nya
-      const parentId = materiData.parent_id ?? materiData.id;
-
-      // Ambil parent itu sendiri + semua child-nya
-      const { data: parentData } = await supabase
-        .from('materials')
-        .select('id, title, content, category, status, img, parent_id')
-        .eq('id', parentId)
-        .single();
-
-      const { data: childData } = await supabase
-        .from('materials')
-        .select('id, title, content, category, status, img, parent_id')
-        .eq('parent_id', parentId)
-        .order('id');
-
-      const listTahapan = [
-        ...(parentData ? [parentData] : []),
-        ...(childData || []),
-      ];
-
-      setMateri(materiData);
-      setKontenAktif(materiData);
-      setSemuaMateri(listTahapan);
-      setLoading(false);
+        setMateri(response);
+        setKontenAktif(response);
+        setSemuaMateri([response]);
+      } catch (err) {
+        console.error('Error loading material detail:', err);
+        navigate('/materi');
+      } finally {
+        setLoading(false);
+      }
     };
     if (id) fetchData();
-  }, [id]);
+  }, [id, navigate]);
 
   const pilihMateri = (m: Materi) => {
-    const terkunci = m.status === 'Khusus Member' && !sudahLogin;
+    const terkunci = m.status === 'Khusus Member' && !isAuthenticated;
     if (terkunci) return;
     setKontenAktif(m);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -102,8 +77,8 @@ function DetailMateriPage() {
   }
 
   const isKhususAktif = kontenAktif.status === 'Khusus Member';
-  const terkunciAktif = isKhususAktif && !sudahLogin;
-  const kataKonten = kontenAktif.content.split(' ');
+  const terkunciAktif = isKhususAktif && !isAuthenticated;
+  const kataKonten = (kontenAktif.content || '').split(' ');
   const kontenPreview = kataKonten.slice(0, Math.ceil(kataKonten.length * 0.4)).join(' ') + '...';
 
   // format paragraf
@@ -157,7 +132,7 @@ function DetailMateriPage() {
 
           {/* GRID 2 — Konten Materi */}
           <div style={s.gridKonten}>
-            {!sudahLogin && (
+            {!isAuthenticated && (
               <div style={s.bannerGuest}>
                 <span style={{ fontSize: '18px' }}>⚡</span>
                 <p style={s.teksBanner}>
@@ -235,7 +210,7 @@ function DetailMateriPage() {
                 <div style={s.listMateri}>
                   {semuaMateri.map(m => {
                     const aktif = kontenAktif.id === m.id;
-                    const terkunci = m.status === 'Khusus Member' && !sudahLogin;
+                    const terkunci = m.status === 'Khusus Member' && !isAuthenticated;
                     return (
                       <button
                         key={m.id}
@@ -275,7 +250,7 @@ function DetailMateriPage() {
               )}
             </div>
 
-            {!sudahLogin && (
+            {!isAuthenticated && (
               <div style={s.miniCta}>
                 <p style={s.teksCtaMini}>🚀 Bergabung dengan <strong>15.000+</strong> siswa aktif</p>
                 <Link to="/daftar" style={s.btnCtaMini}>Daftar Gratis</Link>

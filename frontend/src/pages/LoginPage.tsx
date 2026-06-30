@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../lib/useAuth';
 import logo from '../assets/warnalogo.png';
 import laptop from '../assets/laptop.png';
-import { supabase } from '../lib/supabaseClient';
 
 function LoginPage() {
   const navigate = useNavigate();
+  const { login } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -18,10 +19,19 @@ function LoginPage() {
     e.preventDefault();
     setError('');
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) setError(error.message);
-    else navigate('/dashboard');
-    setLoading(false);
+
+    try {
+      const loggedInUser = await login(email, password);
+      if (loggedInUser?.role === 'admin') {
+        navigate('/admin');
+      } else {
+        navigate('/dashboard');
+      }
+    } catch (err: any) {
+      setError(err?.message || 'Login gagal. Periksa email dan password Anda.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

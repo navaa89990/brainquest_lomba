@@ -1,4 +1,7 @@
-import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useLocation, Navigate } from 'react-router-dom';
+import { AuthProvider } from './lib/authContext';
+import { ProtectedRoute } from './lib/protectedRoute';
+import { AdminRoute } from './lib/AdminRoute';
 import LoginPage from './pages/LoginPage'; 
 import Home from './pages/Home';
 import MateriPage from './pages/MateriPage';
@@ -8,6 +11,7 @@ import Navbar from './components/Navbar';
 import SignupPage from './pages/SignupPage';
 import DashboardPage from './pages/DashboardPage';
 import LeaderboardPage from './pages/LeaderboardPage';
+import AdminPage from './pages/AdminPage';
 
 function AppContent() {
   const location = useLocation();
@@ -25,7 +29,23 @@ function AppContent() {
         <Route path="/kuis" element={<KuisPage />} />
         <Route path="/kuis/:id" element={<KuisPage />} />
         <Route path="/leaderboard" element={<LeaderboardPage />} />
-        <Route path="/dashboard" element={<DashboardPage />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+        <Route
+          path="/dashboard"
+          element={
+            <ProtectedRoute>
+              <DashboardPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin"
+          element={
+            <AdminRoute>
+              <AdminPage />
+            </AdminRoute>
+          }
+        />
       </Routes>
     </>
   );
@@ -34,7 +54,9 @@ function AppContent() {
 function App() {
   return (
     <Router>
-      <AppContent />
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
     </Router>
   );
 }

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { supabase } from '../lib/supabaseClient';
+import { useAuth } from '../lib/useAuth';
+import { apiService } from '../lib/apiService';
 
 interface Materi {
   id: number;
@@ -24,10 +25,10 @@ const BATAS_SOAL_GUEST = 5;
 function KuisPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
 
   const [bankMateri, setBankMateri] = useState<Materi[]>([]);
   const [loadingMateri, setLoadingMateri] = useState(true);
-  const [sudahLogin, setSudahLogin] = useState(false);
 
   const [daftarSoal, setDaftarSoal] = useState<Soal[]>([]);
   const [indeksSoal, setIndeksSoal] = useState(0);
@@ -43,21 +44,17 @@ function KuisPage() {
   const totalSoal = daftarSoal.length;
 
   useEffect(() => {
-    const cekSesi = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      setSudahLogin(!!session);
-    };
-    cekSesi();
-    const { data: listener } = supabase.auth.onAuthStateChange((_e, session) => setSudahLogin(!!session));
-    return () => listener.subscription.unsubscribe();
-  }, []);
-
-  useEffect(() => {
     const fetchMateri = async () => {
       setLoadingMateri(true);
-      const { data } = await supabase.from('materials').select('id, title, content, category, status, img').is('parent_id', null);
-      setBankMateri(data || []);
-      setLoadingMateri(false);
+      try {
+        const response = await apiService.getMaterials(1, 100);
+        setBankMateri(response.materials || []);
+      } catch (err) {
+        console.error('Error loading quiz materials:', err);
+        setBankMateri([]);
+      } finally {
+        setLoadingMateri(false);
+      }
     };
     fetchMateri();
   }, []);
@@ -69,7 +66,7 @@ function KuisPage() {
   }, [id, bankMateri]);
 
   const mulaKuis = async (materi: Materi) => {
-    const terkunci = materi.status === 'Khusus Member' && !sudahLogin;
+    const terkunci = materi.status === 'Khusus Member' && !isAuthenticated;
     if (terkunci) { navigate('/login'); return; }
     setMateriAktif(materi);
     setSelesai(false);
@@ -80,16 +77,26 @@ function KuisPage() {
     setTotalBenar(0);
     setLoadingSoal(true);
     try {
-      const { data, error } = await supabase
-        .from('questions')
-        .select('id, module_id, question, options, answer')
-        .eq('module_id', materi.id)
-        .limit(BATAS_SOAL_GUEST);
-      if (error) throw error;
-      const valid = (data || []).filter((s: any) => s.question && Array.isArray(s.options) && s.options.length > 0);
+      const response = await apiService.getMaterialDetail(materi.id);
+      const questionData = response.questions || [];
+      const valid = questionData
+        .map((q: any) => {
+          const options = [q.option_a, q.option_b, q.option_c, q.option_d].filter(Boolean);
+          const answer = options.findIndex((opt) => opt === q.correct_answer);
+          return {
+            id: q.id,
+            module_id: materi.id,
+            question: q.question_text,
+            options,
+            answer: answer >= 0 ? answer : 0,
+          } as Soal;
+        })
+        .filter((s: any) => s.question && Array.isArray(s.options) && s.options.length > 0)
+        .slice(0, BATAS_SOAL_GUEST);
       setDaftarSoal(valid);
     } catch (err) {
       console.error('Gagal memuat soal:', err);
+      setDaftarSoal([]);
     } finally {
       setLoadingSoal(false);
     }
@@ -261,7 +268,7 @@ function KuisPage() {
           <div style={g.grid} className="grid-materi-mobile">
             {bankMateri.map(m => {
               const isKhusus = m.status === 'Khusus Member';
-              const terkunci = isKhusus && !sudahLogin;
+              const terkunci = isKhusus && !isAuthenticated;
               return (
                 <article
                   key={m.id}

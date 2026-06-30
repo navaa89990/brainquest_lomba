@@ -1,38 +1,22 @@
 // src/pages/Leaderboard.tsx
 import React, { useEffect, useState } from "react";
-import { supabase } from "../lib/supabaseClient";
+import { apiService } from "../lib/apiService";
 
 const Leaderboard: React.FC = () => {
   const [users, setUsers] = useState<any[]>([]);
 
   useEffect(() => {
-    // 1. Fungsi untuk mengambil data awal
     const fetchLeaderboard = async () => {
-      const { data, error } = await supabase
-        .from('users') // Sesuaikan dengan nama tabel user/skor kamu
-        .select('id, name, xp')
-        .order('xp', { ascending: false })
-        .limit(10);
-
-      if (error) console.error("Error fetching leaderboard:", error);
-      else setUsers(data || []);
+      try {
+        const response = await apiService.getLeaderboard(10, 0);
+        setUsers(response.leaderboard || []);
+      } catch (err) {
+        console.error("Error fetching leaderboard:", err);
+        setUsers([]);
+      }
     };
 
     fetchLeaderboard();
-
-    // 2. Implementasi Real-time
-    const channel = supabase
-      .channel('public:users')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'users' }, (payload) => {
-        
-        fetchLeaderboard();
-      })
-      .subscribe();
-
-   
-    return () => {
-      supabase.removeChannel(channel);
-    };
   }, []);
 
   return (

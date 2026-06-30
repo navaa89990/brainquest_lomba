@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { supabase } from '../lib/supabaseClient';
+import { useAuth } from '../lib/useAuth';
+import { apiService } from '../lib/apiService';
 
 interface Materi {
   id: number;
@@ -16,41 +17,28 @@ function MateriPage() {
   const [bankMateri, setBankMateri] = useState<Materi[]>([]);
   const [loading, setLoading] = useState(true);
   const [kartuHover, setKartuHover] = useState<number | null>(null);
-  const [sudahLogin, setSudahLogin] = useState(false);
-  const [cekAuth, setCekAuth] = useState(true);
+  const { isAuthenticated, isLoading } = useAuth();
 
   const daftarKategori = ['Semua', 'Pemrograman', 'Pengetahuan Umum', 'Bahasa Indonesia', 'Bahasa Inggris'];
 
   useEffect(() => {
-    const cekSesi = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      setSudahLogin(!!session);
-      setCekAuth(false);
-    };
-    cekSesi();
-
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSudahLogin(!!session);
-    });
-
-    return () => listener.subscription.unsubscribe();
-  }, []);
-
-  useEffect(() => {
-    if (cekAuth) return;
     const loadMaterials = async () => {
       setLoading(true);
-      let query = supabase.from('materials').select('id, title, content, category, status, img').is('parent_id', null);
-      if (kategoriAktif !== 'Semua') query = query.eq('category', kategoriAktif);
-      const { data, error } = await query;
-      if (error) console.error('Supabase error:', error);
-      else setBankMateri(data || []);
-      setLoading(false);
+      try {
+        const response = await apiService.getMaterials(1, 100, kategoriAktif !== 'Semua' ? kategoriAktif : undefined);
+        setBankMateri(response.materials || []);
+      } catch (err) {
+        console.error('Error loading materials:', err);
+        setBankMateri([]);
+      } finally {
+        setLoading(false);
+      }
     };
-    loadMaterials();
-  }, [kategoriAktif, cekAuth]);
 
-  const isTerkunci = (m: Materi) => m.status === 'Khusus Member' && !sudahLogin;
+    loadMaterials();
+  }, [kategoriAktif]);
+
+  const isTerkunci = (m: Materi) => m.status === 'Khusus Member' && !isAuthenticated;
 
   return (
     <div style={s.wrapper}>
@@ -83,7 +71,7 @@ function MateriPage() {
           })}
         </div>
 
-        {loading || cekAuth ? (
+        {loading || isLoading ? (
           <div style={s.loadingWrap}>
             <div style={s.skeletonGrid} className="grid-materi-mobile">
               {[1, 2, 3, 4, 5, 6].map(i => (

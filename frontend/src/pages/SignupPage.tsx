@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { supabase } from '../lib/supabaseClient';
+import { useAuth } from '../lib/useAuth';
 import logo from '../assets/warnalogo.png';
 import laptop from '../assets/laptop.png';
 
@@ -14,46 +14,22 @@ function SignupPage() {
   const [loading, setLoading] = useState(false);
 
   const kembali = () => navigate(-1);
+  const { signup } = useAuth();
 
   const tanganiDaftar = async (e: React.FormEvent) => {
-  e.preventDefault();
-  setError('');
-  setLoading(true);
+    e.preventDefault();
+    setError('');
+    setLoading(true);
 
-  try {
-    // 1. Supabase Auth membuat akun (email & password)
-    const { data, error: authError } = await supabase.auth.signUp({
-      email,
-      password,
-    });
-
-    if (authError) throw authError;
-
-    // 2. JIKA (dan hanya jika) Auth berhasil, baru simpan ke tabel 'users'
-    if (data.user) {
-      const { error: dbError } = await supabase
-        .from('users')
-        .insert([
-          { 
-            auth_id: data.user.id, // ID unik dari Supabase Auth
-            username: nama,         
-            email: email,
-            password: password,
-            total_points: 0        
-          }
-        ]);
-
-      if (dbError) throw dbError;
+    try {
+      await signup(nama, email, password, nama);
+      navigate('/dashboard');
+    } catch (err: any) {
+      setError(err?.message || 'Pendaftaran gagal.');
+    } finally {
+      setLoading(false);
     }
-
-    alert("Pendaftaran berhasil!");
-    navigate('/login'); 
-  } catch (err: any) {
-    setError(err.message || 'Pendaftaran gagal.');
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   return (
     <div style={styles.halamanWrapper}>

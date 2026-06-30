@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import { useAuth } from '../lib/useAuth';
 import logo from '../assets/warnalogo.png';
 
 function Navbar() {
   const location = useLocation();
+  const { user, isAuthenticated } = useAuth();
   const [menuTerbuka, setMenuTerbuka] = useState(false);
   const [terscroll, setTerscroll] = useState(false);
   const [hpMenuBuka, setHpMenuBuka] = useState(false);
@@ -30,6 +32,7 @@ function Navbar() {
     { name: 'Materi', path: '/materi' },
     { name: 'Arena Kuis', path: '/kuis' },
     { name: 'Leaderboard', path: '/leaderboard' },
+    ...(isAuthenticated && user?.role === 'admin' ? [{ name: 'Admin', path: '/admin' }] : []),
   ];
 
   return (

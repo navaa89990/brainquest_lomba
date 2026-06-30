@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../lib/useAuth';
 import logo from '../assets/warnalogo.png';
 import Materi from '../components/dashboard/Materi';
 import ArenaKuis from '../components/dashboard/ArenaKuis';
@@ -10,18 +11,39 @@ function DashboardPage() {
   const navigate = useNavigate();
   const [activeMenu, setActiveMenu] = useState('ringkasan');
   const [sidebarBuka, setSidebarBuka] = useState(false);
+  const { user } = useAuth();
 
-  const user = {
-    nama: 'Navdev',
-    email: 'navdev@brainquest.com',
-    level: 12,
-    xp: 2450,
-    xpMax: 4000,
-    streak: 5,
-    rank: 14,
-    questSelesai: 3,
-    questTotal: 5,
-  };
+  useEffect(() => {
+    if (user?.role === 'admin') {
+      navigate('/admin');
+    }
+  }, [navigate, user]);
+
+  const displayUser = user
+    ? {
+        nama: user.fullName,
+        email: user.email,
+        level: user.level,
+        xp: user.points,
+        xpMax: Math.max(100, user.level * 400),
+        streak: 5,
+        rank: Math.max(1, 20 - user.level),
+        questSelesai: 3,
+        questTotal: 5,
+        role: user.role,
+      }
+    : {
+        nama: 'Pengguna',
+        email: '',
+        level: 1,
+        xp: 0,
+        xpMax: 400,
+        streak: 0,
+        rank: 0,
+        questSelesai: 0,
+        questTotal: 5,
+        role: 'user',
+      };
 
   const menuItems = [
     { id: 'ringkasan', label: 'Ringkasan', icon: 'M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z' },
@@ -143,22 +165,22 @@ function DashboardPage() {
                 <line x1="3" y1="18" x2="21" y2="18"></line>
               </svg>
             </button>
-            <h1 style={styles.headerGreeting} className="header-greeting">Halo, {user.nama}! 👋</h1>
+            <h1 style={styles.headerGreeting} className="header-greeting">Halo, {displayUser.nama}! 👋</h1>
           </div>
           
           <div style={styles.headerKanan}>
             <div style={styles.statsIconGroup} className="stats-group" aria-label="Statistik Pengguna">
-              <span style={styles.statBadge} title={`${user.streak} Hari Streak`}>
-                <span aria-hidden="true">🔥</span> {user.streak}<span className="stat-teks"> Hari Streak</span>
+              <span style={styles.statBadge} title={`${displayUser.streak} Hari Streak`}>
+                <span aria-hidden="true">🔥</span> {displayUser.streak}<span className="stat-teks"> Hari Streak</span>
               </span>
-              <span style={styles.statBadgeAmber} title={`Peringkat ${user.rank}`}>
-                <span aria-hidden="true">🏆</span> Peringkat <span className="stat-teks">#{user.rank}</span>
+              <span style={styles.statBadgeAmber} title={`Peringkat ${displayUser.rank}`}>
+                <span aria-hidden="true">🏆</span> Peringkat <span className="stat-teks">#{displayUser.rank}</span>
               </span>
             </div>
             
             <div style={styles.profilInfo}>
-              <div style={styles.avatarMini} aria-label={`Profil ${user.nama}`}>
-                {user.nama.substring(0, 2).toUpperCase()}
+              <div style={styles.avatarMini} aria-label={`Profil ${displayUser.nama}`}>
+                {displayUser.nama.substring(0, 2).toUpperCase()}
               </div>
             </div>
           </div>
@@ -189,23 +211,23 @@ function DashboardPage() {
         <article style={styles.kartuUtama} className="kartu">
           <h3 style={styles.kartuJudul}>Progres Level & XP</h3>
           <div style={styles.levelWrapper}>
-            <span style={styles.levelBadge}>LEVEL {user.level}</span>
-            <span style={styles.levelXp}>{user.xp} / {user.xpMax} XP</span>
+            <span style={styles.levelBadge}>LEVEL {displayUser.level}</span>
+            <span style={styles.levelXp}>{displayUser.xp} / {displayUser.xpMax} XP</span>
           </div>
           <div style={styles.progressBarBg} aria-hidden="true">
-            <div style={{ ...styles.progressBarFill, width: `${(user.xp / user.xpMax) * 100}%` }}></div>
+            <div style={{ ...styles.progressBarFill, width: `${(displayUser.xp / displayUser.xpMax) * 100}%` }}></div>
           </div>
-          <p style={styles.xpInfo}>Dapatkan {user.xpMax - user.xp} XP lagi untuk naik ke Level {user.level + 1}!</p>
+          <p style={styles.xpInfo}>Dapatkan {displayUser.xpMax - displayUser.xp} XP lagi untuk naik ke Level {displayUser.level + 1}!</p>
         </article>
 
         <article style={styles.kartuUtama} className="kartu">
           <h3 style={styles.kartuJudul}>Quest Harian</h3>
           <div style={styles.questHeader}>
-            <span style={styles.questProgressTeks}>{user.questSelesai} dari {user.questTotal} Quest Selesai</span>
-            <span style={styles.questPersen}>{Math.round((user.questSelesai / user.questTotal) * 100)}%</span>
+            <span style={styles.questProgressTeks}>{displayUser.questSelesai} dari {displayUser.questTotal} Quest Selesai</span>
+            <span style={styles.questPersen}>{Math.round((displayUser.questSelesai / displayUser.questTotal) * 100)}%</span>
           </div>
           <div style={styles.progressBarBg} aria-hidden="true">
-            <div style={{ ...styles.progressBarFill, width: `${(user.questSelesai / user.questTotal) * 100}%` }}></div>
+            <div style={{ ...styles.progressBarFill, width: `${(displayUser.questSelesai / displayUser.questTotal) * 100}%` }}></div>
           </div>
           <ul style={styles.questList}>
             <li style={styles.questItem}>

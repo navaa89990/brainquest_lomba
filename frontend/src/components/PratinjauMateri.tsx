@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { supabase } from '../lib/supabaseClient';
+import { apiService } from '../lib/apiService';
 
 interface Materi {
   id: number;
@@ -25,12 +25,15 @@ function PratinjauMateri() {
   useEffect(() => {
     const fetchMateri = async () => {
       setLoading(true);
-      const { data } = await supabase
-        .from('materials')
-        .select('id, title, content, category, status, img')
-        .is('parent_id', null);
-      setListMateri(data || []);
-      setLoading(false);
+      try {
+        const response = await apiService.getMaterials(1, 100);
+        setListMateri(response.materials || []);
+      } catch (err) {
+        console.error('Error loading preview materials:', err);
+        setListMateri([]);
+      } finally {
+        setLoading(false);
+      }
     };
     fetchMateri();
   }, []);
@@ -105,7 +108,7 @@ function PratinjauMateri() {
                   </span>
                   <div style={gaya.detailTeks}>
                     <h3 style={gaya.judulMateri}>{materi.title}</h3>
-                    <span style={gaya.jumlahMisi}>{materi.content.split(' ').slice(0, 12).join(' ')}...</span>
+                    <span style={gaya.jumlahMisi}>{(materi.content || '').split(' ').slice(0, 12).join(' ')}...</span>
                   </div>
                 </div>
                 <div style={gaya.infoKanan} className="info-kanan-materi">
@@ -138,7 +141,7 @@ function PratinjauMateri() {
             </div>
 
             <div style={gaya.modalBody}>
-              <p style={gaya.modalDeskripsi}>{materiTerpilih.content.split(' ').slice(0, 40).join(' ')}...</p>
+              <p style={gaya.modalDeskripsi}>{(materiTerpilih.content || '').split(' ').slice(0, 40).join(' ')}...</p>
             </div>
 
             <div style={gaya.modalFooter}>

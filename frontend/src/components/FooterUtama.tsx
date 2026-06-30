@@ -1,25 +1,15 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../lib/useAuth';
 import logo from '../assets/warnalogo.png';
-import { supabase } from '../lib/supabaseClient';
 
 function FooterUtama() {
   const navigate = useNavigate();
-  const [sudahLogin, setSudahLogin] = useState(false);
-
-  useEffect(() => {
-    const cekSesi = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      setSudahLogin(!!session);
-    };
-    cekSesi();
-    const { data: listener } = supabase.auth.onAuthStateChange((_e, session) => setSudahLogin(!!session));
-    return () => listener.subscription.unsubscribe();
-  }, []);
+  const { isAuthenticated } = useAuth();
 
   const keDashboard = (e: React.MouseEvent) => {
     e.preventDefault();
-    if (sudahLogin) navigate('/dashboard');
+    if (isAuthenticated) navigate('/dashboard');
     else navigate('/login');
   };
 

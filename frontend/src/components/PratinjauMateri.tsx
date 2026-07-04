@@ -9,16 +9,18 @@ interface Materi {
   category: string;
   img?: string;
   status?: string;
+  parent_id?: number | null;
 }
 
 function PratinjauMateri() {
   const navigate = useNavigate();
   const [kategoriAktif, setKategoriAktif] = useState<string>('Semua');
-  const [kartuAktif, setKartuAktif] = useState<number | null>(null);
+  const [kartuAktif, setKartuAktif] = useState<string | number | null>(null);
   const [modalBuka, setModalBuka] = useState(false);
   const [materiTerpilih, setMateriTerpilih] = useState<Materi | null>(null);
   const [listMateri, setListMateri] = useState<Materi[]>([]);
   const [loading, setLoading] = useState(true);
+  const [expandedParent, setExpandedParent] = useState<number | null>(null);
 
   const daftarKategori = ['Semua', 'Pemrograman', 'Pengetahuan Umum', 'Bahasa Indonesia', 'Bahasa Inggris'];
 
@@ -38,9 +40,28 @@ function PratinjauMateri() {
     fetchMateri();
   }, []);
 
+  // Filter: ambil parent aja, child AI ga ditampilkan di preview
+  const materiParent = listMateri.filter(item => {
+    // Hanya ambil yang parent_id null (parent)
+    if (item.parent_id !== null && item.parent_id !== undefined) {
+      return false;
+    }
+    return true;
+  });
+
+  // Filter child yang boleh ditampilkan (SEMUA child, termasuk AI)
+  // Ini untuk keperluan hitungan di badge
+  const getAllChildMaterials = (parentId: number) => {
+    return listMateri.filter(item => item.parent_id === parentId);
+  };
+
   const materiTersaring = kategoriAktif === 'Semua'
-    ? listMateri
-    : listMateri.filter(item => item.category === kategoriAktif);
+    ? materiParent
+    : materiParent.filter(item => item.category === kategoriAktif);
+
+  const toggleExpand = (parentId: number) => {
+    setExpandedParent(expandedParent === parentId ? null : parentId);
+  };
 
   const bukaModal = (materi: Materi) => {
     setMateriTerpilih(materi);
@@ -90,40 +111,130 @@ function PratinjauMateri() {
             <p style={{ color: 'var(--text-muted)', fontSize: '15px' }}>Memuat materi...</p>
           ) : materiTersaring.map((materi, indeks) => {
             const sedangHover = kartuAktif === indeks;
+            const childMaterials = getAllChildMaterials(materi.id);
+            const isExpanded = expandedParent === materi.id;
+            const hasChildren = childMaterials.length > 0;
+
             return (
-              <div
-                key={materi.id}
-                style={{ ...gaya.barisMateri, ...(sedangHover ? gaya.barisMateriHover : {}) }}
-                className="baris-materi-item"
-                onMouseEnter={() => setKartuAktif(indeks)}
-                onMouseLeave={() => setKartuAktif(null)}
-              >
-                <div style={gaya.infoKiri} className="info-kiri-materi">
-                  <span style={{
-                    ...gaya.badgeLevel,
-                    backgroundColor: sedangHover ? 'var(--primary-purple)' : 'rgba(244, 166, 35, 0.08)',
-                    color: sedangHover ? '#ffffff' : 'var(--primary-purple)'
-                  }}>
-                    {materi.category}
-                  </span>
-                  <div style={gaya.detailTeks}>
-                    <h3 style={gaya.judulMateri}>{materi.title}</h3>
-                    <span style={gaya.jumlahMisi}>{(materi.content || '').split(' ').slice(0, 12).join(' ')}...</span>
+              <div key={materi.id} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <div
+                  style={{ 
+                    ...gaya.barisMateri, 
+                    ...(sedangHover ? gaya.barisMateriHover : {}),
+                    ...(hasChildren ? { cursor: 'pointer' } : {})
+                  }}
+                  className="baris-materi-item"
+                  onMouseEnter={() => setKartuAktif(indeks)}
+                  onMouseLeave={() => setKartuAktif(null)}
+                  onClick={() => hasChildren && toggleExpand(materi.id)}
+                >
+                  <div style={gaya.infoKiri} className="info-kiri-materi">
+                    <span style={{
+                      ...gaya.badgeLevel,
+                      backgroundColor: sedangHover ? 'var(--primary-purple)' : 'rgba(244, 166, 35, 0.08)',
+                      color: sedangHover ? '#ffffff' : 'var(--primary-purple)'
+                    }}>
+                      {materi.category}
+                    </span>
+                    <div style={gaya.detailTeks}>
+                      <h3 style={gaya.judulMateri}>
+                        {materi.title}
+                        {hasChildren && (
+                          <span style={{ 
+                            marginLeft: '12px', 
+                            fontSize: '14px', 
+                            color: 'var(--primary-purple)',
+                            fontWeight: 600
+                          }}>
+                            {isExpanded ? '▼' : '▶'} {childMaterials.length} submateri
+                          </span>
+                        )}
+                      </h3>
+                      <span style={gaya.jumlahMisi}>{(materi.content || '').split(' ').slice(0, 12).join(' ')}...</span>
+                    </div>
+                  </div>
+                  <div style={gaya.infoKanan} className="info-kanan-materi">
+                    <button
+                      style={{
+                        ...gaya.tombolAksi,
+                        backgroundColor: sedangHover ? 'var(--primary-purple)' : '#f0f2f5',
+                        color: sedangHover ? '#ffffff' : 'var(--text-dark)'
+                      }}
+                      className="tombol-aksi-materi tombol-efek-ringan"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        bukaModal(materi);
+                      }}
+                    >
+                      Lihat Misi
+                    </button>
                   </div>
                 </div>
-                <div style={gaya.infoKanan} className="info-kanan-materi">
-                  <button
-                    style={{
-                      ...gaya.tombolAksi,
-                      backgroundColor: sedangHover ? 'var(--primary-purple)' : '#f0f2f5',
-                      color: sedangHover ? '#ffffff' : 'var(--text-dark)'
-                    }}
-                    className="tombol-aksi-materi tombol-efek-ringan"
-                    onClick={() => bukaModal(materi)}
-                  >
-                    Lihat Misi
-                  </button>
-                </div>
+
+                {isExpanded && hasChildren && (
+                  <div style={{ 
+                    marginLeft: '40px', 
+                    paddingLeft: '20px', 
+                    borderLeft: '2px solid rgba(146, 0, 239, 0.2)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '12px'
+                  }}>
+                    {childMaterials.map((child) => {
+                      const childKey = `child-${child.id}`;
+                      const childHover = kartuAktif === childKey;
+                      return (
+                        <div
+                          key={child.id}
+                          style={{ 
+                            ...gaya.barisMateri, 
+                            ...(childHover ? gaya.barisMateriHover : {}),
+                            padding: '16px 24px',
+                            backgroundColor: '#f8f5ff',
+                            border: '1px solid rgba(146, 0, 239, 0.08)'
+                          }}
+                          className="baris-materi-item"
+                          onMouseEnter={() => setKartuAktif(childKey)}
+                          onMouseLeave={() => setKartuAktif(null)}
+                        >
+                          <div style={gaya.infoKiri} className="info-kiri-materi">
+                            <span style={{
+                              ...gaya.badgeLevel,
+                              backgroundColor: 'rgba(146, 0, 239, 0.1)',
+                              color: 'var(--primary-purple)',
+                              fontSize: '12px',
+                              padding: '4px 12px'
+                            }}>
+                              Sub
+                            </span>
+                            <div style={gaya.detailTeks}>
+                              <h3 style={{ ...gaya.judulMateri, fontSize: '16px' }}>{child.title}</h3>
+                              <span style={gaya.jumlahMisi}>{(child.content || '').split(' ').slice(0, 10).join(' ')}...</span>
+                            </div>
+                          </div>
+                          <div style={gaya.infoKanan} className="info-kanan-materi">
+                            <button
+                              style={{
+                                ...gaya.tombolAksi,
+                                backgroundColor: childHover ? 'var(--primary-purple)' : '#f0f2f5',
+                                color: childHover ? '#ffffff' : 'var(--text-dark)',
+                                padding: '8px 16px',
+                                fontSize: '12px'
+                              }}
+                              className="tombol-aksi-materi tombol-efek-ringan"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                bukaModal(child);
+                              }}
+                            >
+                              Lihat Misi
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             );
           })}
@@ -255,7 +366,7 @@ const gaya = {
     justifyContent: 'space-between',
     boxShadow: '0 4px 20px rgba(0, 0, 0, 0.01)',
     transition: 'transform 0.3s cubic-bezier(0.25, 1, 0.5, 1), box-shadow 0.3s cubic-bezier(0.25, 1, 0.5, 1), border-color 0.3s ease',
-    cursor: 'pointer',
+    cursor: 'default',
     transform: 'translateX(0)',
   } as React.CSSProperties,
 

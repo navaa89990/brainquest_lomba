@@ -10,6 +10,7 @@ interface Materi {
   category: string;
   img?: string;
   status?: string;
+  parent_id?: number | null;
 }
 
 function MateriPage() {
@@ -26,7 +27,14 @@ function MateriPage() {
       setLoading(true);
       try {
         const response = await apiService.getMaterials(1, 100, kategoriAktif !== 'Semua' ? kategoriAktif : undefined);
-        setBankMateri(response.materials || []);
+        const allMaterials = response.materials || [];
+        
+        // FILTER: Hanya tampilkan parent (parent_id null atau undefined)
+        const parentOnly = allMaterials.filter((item: Materi) => 
+          item.parent_id === null || item.parent_id === undefined
+        );
+        
+        setBankMateri(parentOnly);
       } catch (err) {
         console.error('Error loading materials:', err);
         setBankMateri([]);

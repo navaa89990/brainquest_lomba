@@ -22,11 +22,16 @@ function DetailMateriPage() {
   const [semuaMateri, setSemuaMateri] = useState<Materi[]>([]);
   const [kontenAktif, setKontenAktif] = useState<Materi | null>(null);
   const [loading, setLoading] = useState(true);
+  const [parentMateri, setParentMateri] = useState<Materi | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
       try {
+        const allMaterialsResponse = await apiService.getMaterials(1, 100);
+        const allMaterials = allMaterialsResponse?.materials || [];
+        setSemuaMateri(allMaterials);
+
         const response = await apiService.getMaterialDetail(Number(id));
 
         if (!response || !response.id) {
@@ -36,7 +41,18 @@ function DetailMateriPage() {
 
         setMateri(response);
         setKontenAktif(response);
-        setSemuaMateri([response]);
+
+        if (response.parent_id !== null && response.parent_id !== undefined) {
+          const parent = allMaterials.find((m: Materi) => m.id === response.parent_id);
+          if (parent) {
+            setParentMateri(parent);
+          } else {
+            setParentMateri(response);
+          }
+        } else {
+          setParentMateri(response);
+        }
+
       } catch (err) {
         console.error('Error loading material detail:', err);
         navigate('/materi');
@@ -46,6 +62,12 @@ function DetailMateriPage() {
     };
     if (id) fetchData();
   }, [id, navigate]);
+
+  const getRelatedMaterials = (): Materi[] => {
+    if (!parentMateri) return [materi].filter(Boolean) as Materi[];
+    const children = semuaMateri.filter(m => m.parent_id === parentMateri.id);
+    return [parentMateri, ...children];
+  };
 
   const pilihMateri = (m: Materi) => {
     const terkunci = m.status === 'Khusus Member' && !isAuthenticated;
@@ -81,11 +103,12 @@ function DetailMateriPage() {
   const kataKonten = (kontenAktif.content || '').split(' ');
   const kontenPreview = kataKonten.slice(0, Math.ceil(kataKonten.length * 0.4)).join(' ') + '...';
 
-  // format paragraf
   const renderKonten = (teks: string) =>
     teks.split('\n').filter(p => p.trim()).map((p, i) => (
       <p key={i} style={s.paragraf}>{p}</p>
     ));
+
+  const relatedMaterials = getRelatedMaterials();
 
   return (
     <div style={s.wrapper}>
@@ -94,6 +117,14 @@ function DetailMateriPage() {
         <nav style={s.breadcrumb} aria-label="Breadcrumb">
           <Link to="/materi" style={s.breadcrumbLink}>Materi</Link>
           <span style={s.sep}>›</span>
+          {parentMateri && parentMateri.id !== materi.id && (
+            <>
+              <Link to={`/materi/${parentMateri.id}`} style={s.breadcrumbLink}>
+                {parentMateri.title}
+              </Link>
+              <span style={s.sep}>›</span>
+            </>
+          )}
           <span style={s.breadcrumbAktif}>{materi.title}</span>
         </nav>
 
@@ -115,7 +146,6 @@ function DetailMateriPage() {
 
         <div style={s.layoutGrid} className="detail-layout-grid">
 
-          {/* GRID 1 — Thumbnail */}
           <div style={s.gridGambar}>
             {kontenAktif.img ? (
               <img src={kontenAktif.img} alt={kontenAktif.title} style={s.gambar} />
@@ -130,7 +160,6 @@ function DetailMateriPage() {
             )}
           </div>
 
-          {/* GRID 2 — Konten Materi */}
           <div style={s.gridKonten}>
             {!isAuthenticated && (
               <div style={s.bannerGuest}>
@@ -198,19 +227,22 @@ function DetailMateriPage() {
             )}
           </div>
 
-          {/* GRID 3 — Sidebar list materi */}
           <aside style={s.sidebar} className="detail-sidebar">
             <div style={s.kartuSidebar}>
-              <h3 style={s.judulSidebar}>Tahapan Materi</h3>
-              {semuaMateri.length === 0 ? (
+              <h3 style={s.judulSidebar}>
+                {parentMateri ? parentMateri.title : 'Tahapan Materi'}
+              </h3>
+              {relatedMaterials.length === 0 ? (
                 <p style={{ fontSize: '13px', color: 'var(--text-muted)', margin: 0, lineHeight: 1.6 }}>
                   Belum ada sub-materi untuk topik ini.
                 </p>
               ) : (
                 <div style={s.listMateri}>
-                  {semuaMateri.map(m => {
+                  {relatedMaterials.map(m => {
                     const aktif = kontenAktif.id === m.id;
                     const terkunci = m.status === 'Khusus Member' && !isAuthenticated;
+                    const isParent = m.id === parentMateri?.id;
+                    
                     return (
                       <button
                         key={m.id}
@@ -220,27 +252,38 @@ function DetailMateriPage() {
                           borderLeft: aktif ? '3px solid var(--primary-purple)' : '3px solid transparent',
                           cursor: terkunci ? 'default' : 'pointer',
                           opacity: terkunci ? 0.6 : 1,
+                          paddingLeft: isParent ? '14px' : '24px',
                         }}
                         onClick={() => pilihMateri(m)}
                       >
                         <div style={s.itemMateriKiri}>
-                          {terkunci ? (
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6366f1" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: '2px' }}>
-                              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-                            </svg>
+                          {isParent ? (
+                            <div style={{ ...s.dotItem, backgroundColor: aktif ? 'var(--primary-purple)' : '#94a3b8', width: '10px', height: '10px' }} />
                           ) : (
-                            <div style={{ ...s.dotItem, backgroundColor: aktif ? 'var(--primary-purple)' : '#cbd5e1' }} />
+                            <div style={{ ...s.dotItem, backgroundColor: aktif ? 'var(--primary-purple)' : '#cbd5e1', width: '6px', height: '6px', marginLeft: '4px' }} />
                           )}
                           <div>
-                            <p style={{ ...s.itemJudul, color: aktif ? 'var(--primary-purple)' : 'var(--text-dark)', fontWeight: aktif ? 700 : 500 }}>
-                              {m.title}
+                            <p style={{ 
+                              ...s.itemJudul, 
+                              color: aktif ? 'var(--primary-purple)' : 'var(--text-dark)', 
+                              fontWeight: aktif ? 700 : isParent ? 600 : 500,
+                              fontSize: isParent ? '14px' : '13px'
+                            }}>
+                              {isParent && '📁 '}{m.title}
                             </p>
-                            <p style={s.itemKat}>{m.category}</p>
+                            <p style={s.itemKat}>
+                              {isParent ? 'Materi Utama' : 'Sub-materi'} • {m.category}
+                            </p>
                           </div>
                         </div>
                         {aktif && (
                           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--primary-purple)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                             <polyline points="9 18 15 12 9 6"/>
+                          </svg>
+                        )}
+                        {terkunci && (
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6366f1" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
                           </svg>
                         )}
                       </button>
@@ -326,14 +369,12 @@ const s = {
 
   layoutGrid: { display: 'grid' } as React.CSSProperties,
 
-  // Grid 1
   gridGambar: { borderRadius: '20px', overflow: 'hidden', position: 'relative' as const, height: '280px' } as React.CSSProperties,
   gambar: { width: '100%', height: '100%', objectFit: 'cover' as const, display: 'block' } as React.CSSProperties,
   gambarPlaceholder: { width: '100%', height: '100%', backgroundColor: 'var(--light-purple)', display: 'flex', alignItems: 'center', justifyContent: 'center' } as React.CSSProperties,
   labelMateriAktif: { position: 'absolute' as const, bottom: '16px', left: '16px', backgroundColor: 'rgba(0,0,0,0.6)', color: '#fff', padding: '6px 14px', borderRadius: '100px', fontSize: '13px', fontWeight: 600, backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', gap: '8px' } as React.CSSProperties,
   dotAktif: { width: '8px', height: '8px', borderRadius: '50%', backgroundColor: 'var(--primary-purple)', flexShrink: 0 } as React.CSSProperties,
 
-  // Grid 2
   gridKonten: { display: 'flex', flexDirection: 'column' as const, gap: '20px', minWidth: 0 } as React.CSSProperties,
 
   bannerGuest: { display: 'flex', alignItems: 'center', gap: '12px', backgroundColor: '#fef9ec', border: '1px solid rgba(244,166,35,0.2)', borderRadius: '14px', padding: '12px 18px' } as React.CSSProperties,
@@ -363,7 +404,6 @@ const s = {
   teksKuis: { fontSize: '14px', color: 'var(--text-muted)', margin: '4px 0 0 0' } as React.CSSProperties,
   btnKuis: { display: 'flex', alignItems: 'center', gap: '8px', padding: '12px 28px', backgroundColor: 'var(--primary-purple)', color: '#ffffff', border: 'none', borderRadius: '12px', fontSize: '14px', fontWeight: 700, cursor: 'pointer', boxShadow: '0 6px 16px rgba(244,166,35,0.25)', whiteSpace: 'nowrap' as const } as React.CSSProperties,
 
-  // Grid 3
   sidebar: { position: 'sticky' as const, top: '110px', display: 'flex', flexDirection: 'column' as const, gap: '16px' } as React.CSSProperties,
   kartuSidebar: { backgroundColor: '#ffffff', borderRadius: '20px', padding: '24px', border: '1px solid rgba(244,166,35,0.1)', boxShadow: '0 4px 20px rgba(0,0,0,0.03)' } as React.CSSProperties,
   judulSidebar: { fontSize: '15px', fontWeight: 700, color: 'var(--text-dark)', margin: '0 0 16px 0' } as React.CSSProperties,
@@ -378,7 +418,6 @@ const s = {
   teksCtaMini: { fontSize: '13px', color: '#ffffff', margin: 0, lineHeight: 1.5 } as React.CSSProperties,
   btnCtaMini: { display: 'block', textAlign: 'center' as const, padding: '10px 0', backgroundColor: '#ffffff', color: 'var(--primary-purple)', borderRadius: '10px', fontSize: '13px', fontWeight: 800, textDecoration: 'none' } as React.CSSProperties,
 
-  // Skeleton
   skeletonLine: { borderRadius: '8px', ...shimmerBg } as React.CSSProperties,
   skeletonImg: { width: '100%', height: '280px', borderRadius: '20px', ...shimmerBg } as React.CSSProperties,
   skeletonKonten: { backgroundColor: '#ffffff', borderRadius: '20px', padding: '28px 32px' } as React.CSSProperties,

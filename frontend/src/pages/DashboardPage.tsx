@@ -1,23 +1,109 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../lib/useAuth';
+import { apiService } from '../lib/apiService';
 import logo from '../assets/warnalogo.png';
 import Materi from '../components/dashboard/Materi';
 import ArenaKuis from '../components/dashboard/ArenaKuis';
 import Leaderboard from '../components/dashboard/LeaderBoard';
 import Pengaturan from '../components/dashboard/Pengaturan';
+import { styles } from '../components/dashboard/dashboardStyles';
+
+interface QuizHistory {
+  id: number;
+  material_id: number;
+  material_title?: string;
+  category?: string;
+  score: number;
+  total_questions: number;
+  time_spent: number;
+  completed_at: string;
+}
+
+interface MateriData {
+  id: number;
+  title: string;
+  category: string;
+  parent_id?: number | null;
+}
 
 function DashboardPage() {
   const navigate = useNavigate();
   const [activeMenu, setActiveMenu] = useState('ringkasan');
   const [sidebarBuka, setSidebarBuka] = useState(false);
-  const { user } = useAuth();
+  const { user, token, logout } = useAuth();
+  const [quizHistory, setQuizHistory] = useState<QuizHistory[]>([]);
+  const [allMaterials, setAllMaterials] = useState<MateriData[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(true);
+  const [recommendedMaterials, setRecommendedMaterials] = useState<MateriData[]>([]);
 
   useEffect(() => {
     if (user?.role === 'admin') {
       navigate('/admin');
     }
   }, [navigate, user]);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      if (!token) {
+        setLoadingHistory(false);
+        return;
+      }
+
+      try {
+        const materialsResponse = await apiService.getMaterials(1, 100);
+        const materials = materialsResponse?.materials || [];
+        setAllMaterials(materials);
+
+        const parentMaterials = materials.filter((m: MateriData) => m.parent_id === null || m.parent_id === undefined);
+        setRecommendedMaterials(parentMaterials.slice(0, 2));
+
+        const historyResponse = await apiService.getQuizHistory(token, 10, 0);
+        let historyData: QuizHistory[] = [];
+
+        if (historyResponse && historyResponse.records) {
+          historyData = historyResponse.records;
+        } else if (historyResponse && historyResponse.history) {
+          historyData = historyResponse.history;
+        } else if (Array.isArray(historyResponse)) {
+          historyData = historyResponse;
+        }
+
+        const enrichedHistory = historyData.map((quiz) => {
+          const material = materials.find((m: MateriData) => m.id === quiz.material_id);
+          return {
+            ...quiz,
+            material_title: material?.title || `Materi #${quiz.material_id}`,
+            category: material?.category || 'Umum',
+          };
+        });
+
+        const filteredHistory = enrichedHistory.filter((quiz) => {
+          return materials.some((m: MateriData) => m.id === quiz.material_id);
+        });
+
+        setQuizHistory(filteredHistory);
+      } catch (err) {
+        console.error('Error fetching data:', err);
+        setQuizHistory([]);
+      } finally {
+        setLoadingHistory(false);
+      }
+    };
+
+    fetchData();
+  }, [token]);
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      navigate('/');
+    } catch (err) {
+      console.error('Logout error:', err);
+    }
+  };
 
   const displayUser = user
     ? {
@@ -28,7 +114,7 @@ function DashboardPage() {
         xpMax: Math.max(100, user.level * 400),
         streak: 5,
         rank: Math.max(1, 20 - user.level),
-        questSelesai: 3,
+        questSelesai: Math.min(quizHistory.length, 5),
         questTotal: 5,
         role: user.role,
       }
@@ -53,50 +139,67 @@ function DashboardPage() {
     { id: 'settings', label: 'Pengaturan', icon: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z' },
   ];
 
-  const recentQuizzes = [
-    { title: 'Kuis Aljabar Dasar', category: 'Matematika', score: 90, date: '2 jam yang lalu' },
-    { title: 'Gaya & Hukum Newton', category: 'Fisika', score: 100, date: 'Kemarin' },
-    { title: 'Struktur Sel Hewan', category: 'Biologi', score: 80, date: '3 hari yang lalu' },
-  ];
+  const formatDate = (dateString: string) => {
+    try {
+      const date = new Date(dateString);
+      const now = new Date();
+      const diff = Math.floor((now.getTime() - date.getTime()) / 1000);
 
-  const recommendedMaterials = [
-    { title: 'Matriks & Transformasi', category: 'Matematika', duration: '12 Menit', xp: '+60 XP' },
-    { title: 'Gelombang Elektromagnetik', category: 'Fisika', duration: '15 Menit', xp: '+80 XP' },
-  ];
+      if (diff < 60) return 'Baru saja';
+      if (diff < 3600) return `${Math.floor(diff / 60)} menit yang lalu`;
+      if (diff < 86400) return `${Math.floor(diff / 3600)} jam yang lalu`;
+      if (diff < 172800) return 'Kemarin';
+      if (diff < 604800) return `${Math.floor(diff / 86400)} hari yang lalu`;
+      
+      return date.toLocaleDateString('id-ID', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+      });
+    } catch {
+      return dateString;
+    }
+  };
+
+  const getParentMaterials = () => {
+    return allMaterials.filter((m) => m.parent_id === null || m.parent_id === undefined);
+  };
+
+  const gaya = styles;
 
   return (
-    <div style={styles.dashboardContainer}>
+    <div style={gaya.dashboardContainer}>
       
       {sidebarBuka && (
         <div 
-          style={styles.mobileOverlay} 
+          style={gaya.mobileOverlay} 
           onClick={() => setSidebarBuka(false)}
           aria-hidden="true"
         />
       )}
 
-      <aside style={styles.sidebar} className="sidebar-element" aria-label="Sidebar Navigasi">
-        <header style={styles.sidebarHeader}>
-          <div style={styles.sidebarLogoFrame} className="sidebar-logo-frame-brainquest">
-            <img src={logo} alt="Logo Utama BrainQuest" style={styles.sidebarLogo} />
+      <aside style={gaya.sidebar} className="sidebar-element" aria-label="Sidebar Navigasi">
+        <header style={gaya.sidebarHeader}>
+          <div style={gaya.sidebarLogoFrame} className="sidebar-logo-frame-brainquest">
+            <img src={logo} alt="Logo Utama BrainQuest" style={gaya.sidebarLogo} />
           </div>
-          <h2 style={styles.sidebarTitle}>BrainQuest</h2>
+          <h2 style={gaya.sidebarTitle}>BrainQuest</h2>
         </header>
 
-        <nav style={styles.sidebarNav} aria-label="Menu Utama">
-          <ul style={styles.navList}>
+        <nav style={gaya.sidebarNav} aria-label="Menu Utama">
+          <ul style={gaya.navList}>
             {menuItems.map((item) => {
               const isActive = activeMenu === item.id;
               return (
-                <li key={item.id} style={styles.navListItem}>
+                <li key={item.id} style={gaya.navListItem}>
                   <button 
                     onClick={() => {
                       setActiveMenu(item.id);
                       setSidebarBuka(false);
                     }}
                     style={{
-                      ...styles.navItem,
-                      ...(isActive ? styles.navItemActive : {}),
+                      ...gaya.navItem,
+                      ...(isActive ? gaya.navItemActive : {}),
                     }}
                     className="tombol-menu-sidebar"
                     aria-current={isActive ? "page" : undefined}
@@ -123,10 +226,10 @@ function DashboardPage() {
           </ul>
         </nav>
 
-        <footer style={styles.sidebarFooter}>
+        <footer style={gaya.sidebarFooter}>
           <button 
             onClick={() => navigate('/')}
-            style={styles.btnLogout}
+            style={gaya.btnLogout}
             aria-label="Keluar menuju Beranda"
           >
             <svg 
@@ -145,16 +248,37 @@ function DashboardPage() {
             </svg>
             Keluar Beranda
           </button>
+          <button 
+            onClick={handleLogout}
+            style={gaya.btnLogout}
+            aria-label="Logout"
+          >
+            <svg 
+              width="20" 
+              height="20" 
+              viewBox="0 0 24 24" 
+              fill="none" 
+              stroke="currentColor" 
+              strokeWidth="2.5" 
+              strokeLinecap="round" 
+              strokeLinejoin="round"
+              style={{ marginRight: '14px' }}
+              aria-hidden="true"
+            >
+              <path d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+            </svg>
+            Logout
+          </button>
         </footer>
       </aside>
 
-      <main style={styles.mainContent}>
+      <main style={gaya.mainContent}>
         
-        <header style={styles.headerBar} className="header-bar">
-          <div style={styles.headerKiri}>
+        <header style={gaya.headerBar} className="header-bar">
+          <div style={gaya.headerKiri}>
             <button 
               onClick={() => setSidebarBuka(true)} 
-              style={styles.btnHamburger}
+              style={gaya.btnHamburger}
               className="btn-hamburger-mobile"
               aria-label="Buka Menu Navigasi"
               aria-expanded={sidebarBuka}
@@ -165,28 +289,28 @@ function DashboardPage() {
                 <line x1="3" y1="18" x2="21" y2="18"></line>
               </svg>
             </button>
-            <h1 style={styles.headerGreeting} className="header-greeting">Halo, {displayUser.nama}! 👋</h1>
+            <h1 style={gaya.headerGreeting} className="header-greeting">Halo, {displayUser.nama}! 👋</h1>
           </div>
           
-          <div style={styles.headerKanan}>
-            <div style={styles.statsIconGroup} className="stats-group" aria-label="Statistik Pengguna">
-              <span style={styles.statBadge} title={`${displayUser.streak} Hari Streak`}>
+          <div style={gaya.headerKanan}>
+            <div style={gaya.statsIconGroup} className="stats-group" aria-label="Statistik Pengguna">
+              <span style={gaya.statBadge} title={`${displayUser.streak} Hari Streak`}>
                 <span aria-hidden="true">🔥</span> {displayUser.streak}<span className="stat-teks"> Hari Streak</span>
               </span>
-              <span style={styles.statBadgeAmber} title={`Peringkat ${displayUser.rank}`}>
+              <span style={gaya.statBadgeAmber} title={`Peringkat ${displayUser.rank}`}>
                 <span aria-hidden="true">🏆</span> Peringkat <span className="stat-teks">#{displayUser.rank}</span>
               </span>
             </div>
             
-            <div style={styles.profilInfo}>
-              <div style={styles.avatarMini} aria-label={`Profil ${displayUser.nama}`}>
+            <div style={gaya.profilInfo}>
+              <div style={gaya.avatarMini} aria-label={`Profil ${displayUser.nama}`}>
                 {displayUser.nama.substring(0, 2).toUpperCase()}
               </div>
             </div>
           </div>
         </header>
 
-        <div style={styles.contentBody} className="content-body">
+        <div style={gaya.contentBody} className="content-body">
             {activeMenu === 'materi' ? (
               <Materi />
             ) : activeMenu === 'kuis' ? (
@@ -196,118 +320,179 @@ function DashboardPage() {
             ) : activeMenu === 'settings' ? (
               <Pengaturan />
             ) : (
-      <>
-      <section style={styles.bannerInfo} className="banner-info" aria-labelledby="banner-judul">
-        <div style={styles.bannerTeks}>
-          <h2 id="banner-judul" style={styles.bannerJudul}>Petualangan Belajarmu Baru Saja Dimulai!</h2>
-          <p style={styles.bannerSubjudul}>Selesaikan quest harianmu untuk mengklaim bonus XP dan mempertahankan streak belajarmu.</p>
-        </div>
-        <button onClick={() => navigate('/kuis')} style={styles.btnBannerCta} className="btn-banner">
-          Mulai Kuis Sekarang
-        </button>
-      </section>
-
-      <section style={styles.cardsGrid} className="dashboard-cards-grid" aria-label="Informasi Progres Belajar">
-        <article style={styles.kartuUtama} className="kartu">
-          <h3 style={styles.kartuJudul}>Progres Level & XP</h3>
-          <div style={styles.levelWrapper}>
-            <span style={styles.levelBadge}>LEVEL {displayUser.level}</span>
-            <span style={styles.levelXp}>{displayUser.xp} / {displayUser.xpMax} XP</span>
-          </div>
-          <div style={styles.progressBarBg} aria-hidden="true">
-            <div style={{ ...styles.progressBarFill, width: `${(displayUser.xp / displayUser.xpMax) * 100}%` }}></div>
-          </div>
-          <p style={styles.xpInfo}>Dapatkan {displayUser.xpMax - displayUser.xp} XP lagi untuk naik ke Level {displayUser.level + 1}!</p>
-        </article>
-
-        <article style={styles.kartuUtama} className="kartu">
-          <h3 style={styles.kartuJudul}>Quest Harian</h3>
-          <div style={styles.questHeader}>
-            <span style={styles.questProgressTeks}>{displayUser.questSelesai} dari {displayUser.questTotal} Quest Selesai</span>
-            <span style={styles.questPersen}>{Math.round((displayUser.questSelesai / displayUser.questTotal) * 100)}%</span>
-          </div>
-          <div style={styles.progressBarBg} aria-hidden="true">
-            <div style={{ ...styles.progressBarFill, width: `${(displayUser.questSelesai / displayUser.questTotal) * 100}%` }}></div>
-          </div>
-          <ul style={styles.questList}>
-            <li style={styles.questItem}>
-              <span style={styles.questCheckSelesai} aria-hidden="true">✓</span>
-              <span style={styles.questItemTeksSelesai}>Kerjakan kuis harian Matematika (+50 XP)</span>
-            </li>
-            <li style={styles.questItem}>
-              <span style={styles.questCheckSelesai} aria-hidden="true">✓</span>
-              <span style={styles.questItemTeksSelesai}>Baca 1 artikel materi baru (+30 XP)</span>
-            </li>
-            <li style={styles.questItem}>
-              <span style={styles.questCheckBelum} aria-hidden="true">○</span>
-              <span style={styles.questItemTeksBelum}>Capai akurasi 100% pada satu kuis (+100 XP)</span>
-            </li>
-          </ul>
-        </article>
-
-        <article style={styles.kartuUtama} className="kartu">
-          <h3 style={styles.kartuJudul}>Rekomendasi Materi</h3>
-          <div style={styles.rekomendasiList}>
-            {recommendedMaterials.map((mat, i) => (
-              <div key={i} style={styles.rekomendasiItem}>
-                <div>
-                  <h4 style={styles.rekomendasiItemJudul}>{mat.title}</h4>
-                  <p style={styles.rekomendasiItemSub}>{mat.category} • {mat.duration}</p>
-                </div>
-                <span style={styles.xpBadge} aria-label={`Menambahkan ${mat.xp}`}>{mat.xp}</span>
-              </div>
-            ))}
-          </div>
-        </article>
-      </section>
-
-      <section style={styles.sectionBawah} aria-labelledby="riwayat-judul">
-        <article style={styles.kartuLebar} className="kartu">
-          <h3 id="riwayat-judul" style={styles.kartuJudul}>Riwayat Kuis Terakhir</h3>
-          <div style={styles.riwayatWrapper}>
-            {recentQuizzes.map((quiz, i) => (
-              <div key={i} style={styles.riwayatItem} className="riwayat-item">
-                <div style={styles.riwayatInfoKiri}>
-                  <div style={styles.ikonBukuKecil} aria-hidden="true">📖</div>
-                  <div>
-                    <h4 style={styles.riwayatJudulTeks}>{quiz.title}</h4>
-                    <p style={styles.riwayatKategori}>{quiz.category} • {quiz.date}</p>
+              <>
+                <section style={gaya.bannerInfo} className="banner-info" aria-labelledby="banner-judul">
+                  <div style={gaya.bannerTeks}>
+                    <h2 id="banner-judul" style={gaya.bannerJudul}>Petualangan Belajarmu Baru Saja Dimulai!</h2>
+                    <p style={gaya.bannerSubjudul}>Selesaikan quest harianmu untuk mengklaim bonus XP dan mempertahankan streak belajarmu.</p>
                   </div>
-                </div>
-                <div style={styles.riwayatInfoKanan}>
-                  <span style={{
-                    ...styles.skorBadge,
-                    backgroundColor: quiz.score >= 90 ? '#ecfdf5' : '#fef3c7',
-                    color: quiz.score >= 90 ? '#10b981' : '#d97706',
-                  }}>
-                    Skor: {quiz.score}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </article>
-      </section>
-    </>
-    )}
+                  <button onClick={() => navigate('/kuis')} style={gaya.btnBannerCta} className="btn-banner">
+                    Mulai Kuis Sekarang
+                  </button>
+                </section>
+
+                <section style={gaya.cardsGrid} className="dashboard-cards-grid" aria-label="Informasi Progres Belajar">
+                  <article style={gaya.kartuUtama} className="kartu">
+                    <h3 style={gaya.kartuJudul}>Progres Level & XP</h3>
+                    <div style={gaya.levelWrapper}>
+                      <span style={gaya.levelBadge}>LEVEL {displayUser.level}</span>
+                      <span style={gaya.levelXp}>{displayUser.xp} / {displayUser.xpMax} XP</span>
+                    </div>
+                    <div style={gaya.progressBarBg} aria-hidden="true">
+                      <div style={{ ...gaya.progressBarFill, width: `${(displayUser.xp / displayUser.xpMax) * 100}%` }}></div>
+                    </div>
+                    <p style={gaya.xpInfo}>Dapatkan {displayUser.xpMax - displayUser.xp} XP lagi untuk naik ke Level {displayUser.level + 1}!</p>
+                  </article>
+
+                  <article style={gaya.kartuUtama} className="kartu">
+                    <h3 style={gaya.kartuJudul}>Quest Harian</h3>
+                    <div style={gaya.questHeader}>
+                      <span style={gaya.questProgressTeks}>{displayUser.questSelesai} dari {displayUser.questTotal} Quest Selesai</span>
+                      <span style={gaya.questPersen}>{Math.round((displayUser.questSelesai / displayUser.questTotal) * 100)}%</span>
+                    </div>
+                    <div style={gaya.progressBarBg} aria-hidden="true">
+                      <div style={{ ...gaya.progressBarFill, width: `${(displayUser.questSelesai / displayUser.questTotal) * 100}%` }}></div>
+                    </div>
+                    <ul style={gaya.questList}>
+                      <li style={gaya.questItem}>
+                        <span style={gaya.questCheckSelesai} aria-hidden="true">✓</span>
+                        <span style={gaya.questItemTeksSelesai}>Kerjakan kuis harian Matematika (+50 XP)</span>
+                      </li>
+                      <li style={gaya.questItem}>
+                        <span style={gaya.questCheckSelesai} aria-hidden="true">✓</span>
+                        <span style={gaya.questItemTeksSelesai}>Baca 1 artikel materi baru (+30 XP)</span>
+                      </li>
+                      <li style={gaya.questItem}>
+                        <span style={gaya.questCheckBelum} aria-hidden="true">○</span>
+                        <span style={gaya.questItemTeksBelum}>Capai akurasi 100% pada satu kuis (+100 XP)</span>
+                      </li>
+                    </ul>
+                  </article>
+
+                  <article style={gaya.kartuUtama} className="kartu">
+                    <h3 style={gaya.kartuJudul}>Rekomendasi Materi</h3>
+                    <div style={gaya.rekomendasiList}>
+                      {recommendedMaterials.length > 0 ? (
+                        recommendedMaterials.map((mat, i) => (
+                          <div 
+                            key={i} 
+                            style={gaya.rekomendasiItem}
+                            className="rekomendasi-item-clickable"
+                            onClick={() => navigate(`/materi/${mat.id}`)}
+                          >
+                            <div style={gaya.rekomendasiInfo}>
+                              <h4 style={gaya.rekomendasiItemJudul} className="rekomendasi-judul">{mat.title}</h4>
+                              <p style={gaya.rekomendasiItemSub}>{mat.category}</p>
+                            </div>
+                            <div style={gaya.rekomendasiArrow} className="rekomendasi-arrow">
+                              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                <line x1="5" y1="12" x2="19" y2="12"/>
+                                <polyline points="12 5 19 12 12 19"/>
+                              </svg>
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <p style={{ fontSize: '14px', color: '#94a3b8', textAlign: 'center' }}>
+                          Belum ada materi tersedia
+                        </p>
+                      )}
+                    </div>
+                  </article>
+                </section>
+
+                <section style={gaya.sectionBawah} aria-labelledby="riwayat-judul">
+                  <article style={gaya.kartuLebar} className="kartu">
+                    <h3 id="riwayat-judul" style={gaya.kartuJudul}>
+                      {quizHistory.length > 0 ? 'Riwayat Kuis Terakhir' : 'Rekomendasi Materi'}
+                    </h3>
+                    
+                    {loadingHistory ? (
+                      <p style={gaya.kosongText}>Memuat data...</p>
+                    ) : quizHistory.length > 0 ? (
+                      <div style={gaya.riwayatWrapper}>
+                        {quizHistory.slice(0, 5).map((quiz, i) => {
+                          const score = quiz.score || 0;
+                          const total = quiz.total_questions || 0;
+                          const percentage = total > 0 ? Math.round((score / total) * 100) : 0;
+                          
+                          return (
+                            <div key={i} style={gaya.riwayatItem} className="riwayat-item">
+                              <div style={gaya.riwayatInfoKiri}>
+                                <div style={gaya.ikonBukuKecil} aria-hidden="true">📖</div>
+                                <div>
+                                  <h4 style={gaya.riwayatJudulTeks}>
+                                    {quiz.material_title || `Kuis #${quiz.material_id}`}
+                                  </h4>
+                                  <p style={gaya.riwayatKategori}>
+                                    {quiz.category || 'Umum'} • {formatDate(quiz.completed_at)}
+                                  </p>
+                                </div>
+                              </div>
+                              <div style={gaya.riwayatInfoKanan}>
+                                <span style={{
+                                  ...gaya.skorBadge,
+                                  backgroundColor: percentage >= 80 ? '#ecfdf5' : percentage >= 50 ? '#fef3c7' : '#fef2f2',
+                                  color: percentage >= 80 ? '#10b981' : percentage >= 50 ? '#d97706' : '#dc2626',
+                                }}>
+                                  {percentage}% ({score}/{total})
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : getParentMaterials().length > 0 ? (
+                      <div style={gaya.riwayatWrapper}>
+                        {getParentMaterials().slice(0, 5).map((mat) => (
+                          <div key={mat.id} style={gaya.riwayatItem} className="riwayat-item">
+                            <div style={gaya.riwayatInfoKiri}>
+                              <div style={gaya.ikonBukuKecil} aria-hidden="true">📖</div>
+                              <div>
+                                <h4 style={gaya.riwayatJudulTeks}>{mat.title}</h4>
+                                <p style={gaya.riwayatKategori}>{mat.category} • Belum Dikerjakan</p>
+                              </div>
+                            </div>
+                            <div style={gaya.riwayatInfoKanan}>
+                              <button 
+                                onClick={() => navigate(`/kuis/${mat.id}`)}
+                                className="tombol-mulai-kuis-underline"
+                              >
+                                <svg className="tombol-kuis-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                  <polygon points="5 3 19 12 5 21 5 3"/>
+                                </svg>
+                                <span className="tombol-kuis-teks">Mulai Kuis</span>
+                                <span className="tombol-kuis-garis"></span>
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div style={gaya.kosongContainer}>
+                        <span style={gaya.kosongIcon}>📭</span>
+                        <p style={gaya.kosongText}>Belum ada materi tersedia</p>
+                      </div>
+                    )}
+                  </article>
+                </section>
+              </>
+            )}
         </div>
       </main>
 
       <style>{`
         .sidebar-element {
-          transform: translateX(0) !important;
           transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
         .btn-hamburger-mobile {
           display: none !important;
         }
-
         @media (max-width: 1024px) {
           .dashboard-cards-grid {
             grid-template-columns: repeat(2, 1fr) !important;
           }
         }
-
         @media (max-width: 968px) {
           .sidebar-element {
             position: fixed !important;
@@ -324,7 +509,6 @@ function DashboardPage() {
             padding-left: 0 !important;
           }
         }
-
         @media (max-width: 768px) {
           .dashboard-cards-grid {
             grid-template-columns: 1fr !important;
@@ -358,7 +542,6 @@ function DashboardPage() {
             gap: 12px !important;
           }
         }
-
         @media (max-width: 480px) {
           .stat-teks {
             display: none !important;
@@ -369,11 +552,106 @@ function DashboardPage() {
           .header-greeting {
             display: none !important;
           }
-
           .sidebar-logo-frame-brainquest {
             width: 76px !important;
             height: 76px !important;
           }
+          .rekomendasi-item {
+            flex-direction: column !important;
+            align-items: stretch !important;
+          }
+          .rekomendasi-actions {
+            justify-content: stretch !important;
+          }
+          .rekomendasi-actions button {
+            flex: 1 !important;
+            justify-content: center !important;
+          }
+        }
+
+        .rekomendasi-item-clickable {
+          cursor: pointer;
+          transition: all 0.25s ease;
+        }
+        .rekomendasi-item-clickable:hover {
+          background-color: #ffffff !important;
+          border-color: #F4A623 !important;
+          box-shadow: 0 4px 16px rgba(244, 166, 35, 0.12) !important;
+          transform: translateY(-2px);
+        }
+        .rekomendasi-item-clickable:hover .rekomendasi-arrow {
+          color: #F4A623 !important;
+          transform: translateX(4px);
+        }
+        .rekomendasi-item-clickable:hover .rekomendasi-judul {
+          color: #F4A623 !important;
+        }
+
+        /* ===== TOMBOL MULAI KUIS UNDERLINE ===== */
+        .tombol-mulai-kuis-underline {
+          position: relative;
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          background: transparent;
+          border: none;
+          cursor: pointer;
+          padding: 8px 0;
+          font-family: inherit;
+        }
+
+        .tombol-mulai-kuis-underline .tombol-kuis-teks {
+          margin: 0;
+          font-size: 14px;
+          font-weight: 600;
+          color: #475569;
+          position: relative;
+          transition: color 0.3s ease;
+        }
+
+        .tombol-mulai-kuis-underline .tombol-kuis-teks::before {
+          position: absolute;
+          content: "Mulai Kuis";
+          width: 0%;
+          inset: 0;
+          color: #F4A623;
+          overflow: hidden;
+          transition: width 0.3s ease-out;
+        }
+
+        .tombol-mulai-kuis-underline .tombol-kuis-garis {
+          position: absolute;
+          width: 0;
+          left: 0;
+          bottom: -4px;
+          background-color: #F4A623;
+          height: 2px;
+          transition: width 0.3s ease-out;
+        }
+
+        .tombol-mulai-kuis-underline .tombol-kuis-icon {
+          color: #475569;
+          transition: all 0.3s ease;
+          width: 16px;
+          height: 16px;
+          flex-shrink: 0;
+        }
+
+        .tombol-mulai-kuis-underline:hover .tombol-kuis-garis {
+          width: 100%;
+        }
+
+        .tombol-mulai-kuis-underline:hover .tombol-kuis-teks::before {
+          width: 100%;
+        }
+
+        .tombol-mulai-kuis-underline:hover .tombol-kuis-icon {
+          color: #F4A623;
+          transform: translateX(4px);
+        }
+
+        .tombol-mulai-kuis-underline:hover .tombol-kuis-teks {
+          color: #F4A623;
         }
       `}</style>
 
@@ -381,7 +659,7 @@ function DashboardPage() {
   );
 }
 
-const styles = {
+const gaya = {
   dashboardContainer: {
     display: 'flex',
     minHeight: '100vh',
@@ -450,7 +728,6 @@ const styles = {
     transform: 'translateY(6px)',
   } as React.CSSProperties,
 
-
   sidebarNav: {
     padding: '24px 16px',
     display: 'flex',
@@ -497,6 +774,9 @@ const styles = {
   sidebarFooter: {
     padding: '24px 16px',
     borderTop: '1px solid rgba(255, 255, 255, 0.15)',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '8px',
   } as React.CSSProperties,
 
   btnLogout: {
@@ -792,17 +1072,23 @@ const styles = {
   rekomendasiList: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '16px',
+    gap: '12px',
   } as React.CSSProperties,
 
   rekomendasiItem: {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: '16px',
+    padding: '16px 20px',
     backgroundColor: '#f8fafc',
     borderRadius: '16px',
     border: '1px solid #e2e8f0',
+    cursor: 'pointer',
+    transition: 'all 0.25s ease',
+  } as React.CSSProperties,
+
+  rekomendasiInfo: {
+    flex: 1,
   } as React.CSSProperties,
 
   rekomendasiItemJudul: {
@@ -810,12 +1096,20 @@ const styles = {
     fontWeight: 750,
     color: '#2d3748',
     margin: '0 0 4px 0',
+    transition: 'color 0.2s ease',
   } as React.CSSProperties,
 
   rekomendasiItemSub: {
     fontSize: '12px',
     color: '#718096',
     margin: 0,
+  } as React.CSSProperties,
+
+  rekomendasiArrow: {
+    color: '#94a3b8',
+    transition: 'all 0.25s ease',
+    flexShrink: 0,
+    marginLeft: '12px',
   } as React.CSSProperties,
 
   xpBadge: {
@@ -886,6 +1180,46 @@ const styles = {
     fontWeight: 700,
     padding: '6px 14px',
     borderRadius: '100px',
+  } as React.CSSProperties,
+
+  kosongContainer: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '40px 20px',
+    gap: '8px',
+  } as React.CSSProperties,
+
+  kosongIcon: {
+    fontSize: '48px',
+    marginBottom: '8px',
+  } as React.CSSProperties,
+
+  kosongText: {
+    fontSize: '16px',
+    color: '#64748b',
+    fontWeight: 500,
+    margin: 0,
+  } as React.CSSProperties,
+
+  kosongSubText: {
+    fontSize: '14px',
+    color: '#94a3b8',
+    margin: 0,
+  } as React.CSSProperties,
+
+  kosongButton: {
+    marginTop: '12px',
+    padding: '10px 24px',
+    backgroundColor: '#F4A623',
+    color: '#ffffff',
+    border: 'none',
+    borderRadius: '12px',
+    fontSize: '14px',
+    fontWeight: 700,
+    cursor: 'pointer',
+    transition: 'all 0.2s ease',
   } as React.CSSProperties,
 };
 

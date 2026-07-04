@@ -10,6 +10,7 @@ interface Materi {
   category: string;
   img?: string;
   status?: string;
+  parent_id?: number | null;
 }
 
 interface Soal {
@@ -21,6 +22,7 @@ interface Soal {
 }
 
 const BATAS_SOAL_GUEST = 5;
+const WAKTU_PER_SOAL = 15; // 15 detik per soal
 
 function KuisPage() {
   const { id } = useParams<{ id: string }>();
@@ -39,16 +41,52 @@ function KuisPage() {
   const [selesai, setSelesai] = useState(false);
   const [totalBenar, setTotalBenar] = useState(0);
   const [materiAktif, setMateriAktif] = useState<Materi | null>(null);
+  const [waktuSisa, setWaktuSisa] = useState(WAKTU_PER_SOAL);
+  const [showTimeoutPopup, setShowTimeoutPopup] = useState(false);
 
   const soalAktif = daftarSoal[indeksSoal] ?? null;
   const totalSoal = daftarSoal.length;
+
+  // Timer untuk setiap soal
+  useEffect(() => {
+    if (!soalAktif || sudahJawab || selesai || loadingSoal) return;
+
+    const timer = setInterval(() => {
+      setWaktuSisa((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          // Waktu habis dan belum jawab
+          if (!sudahJawab) {
+            setShowTimeoutPopup(true);
+            setTimeout(() => {
+              setShowTimeoutPopup(false);
+              kembaliKeList();
+            }, 2000);
+          }
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [soalAktif, sudahJawab, selesai, loadingSoal]);
+
+  // Reset timer saat pindah soal
+  useEffect(() => {
+    setWaktuSisa(WAKTU_PER_SOAL);
+  }, [indeksSoal]);
 
   useEffect(() => {
     const fetchMateri = async () => {
       setLoadingMateri(true);
       try {
         const response = await apiService.getMaterials(1, 100);
-        setBankMateri(response.materials || []);
+        const allMaterials = response.materials || [];
+        const parentOnly = allMaterials.filter((item: Materi) => 
+          item.parent_id === null || item.parent_id === undefined
+        );
+        setBankMateri(parentOnly);
       } catch (err) {
         console.error('Error loading quiz materials:', err);
         setBankMateri([]);
@@ -75,6 +113,8 @@ function KuisPage() {
     setSudahJawab(false);
     setSkorDapat(null);
     setTotalBenar(0);
+    setWaktuSisa(WAKTU_PER_SOAL);
+    setShowTimeoutPopup(false);
     setLoadingSoal(true);
     try {
       const response = await apiService.getMaterialDetail(materi.id);
@@ -119,6 +159,7 @@ function KuisPage() {
       setOpsiTerpilih(null);
       setSudahJawab(false);
       setSkorDapat(null);
+      setWaktuSisa(WAKTU_PER_SOAL);
     }
   };
 
@@ -126,6 +167,7 @@ function KuisPage() {
     setMateriAktif(null);
     setDaftarSoal([]);
     setSelesai(false);
+    setShowTimeoutPopup(false);
     navigate('/kuis', { replace: true });
   };
 
@@ -180,7 +222,17 @@ function KuisPage() {
                     <h2 style={{ ...g.judulKuis, marginBottom: 0 }}>{materiAktif.title}</h2>
                     <span style={{ fontSize: '13px', fontWeight: 600, color: '#94a3b8' }}>{indeksSoal + 1} / {totalSoal}</span>
                   </div>
-                  <div style={g.barWaktu}><div style={g.isiWaktu} key={indeksSoal} /></div>
+                  <div style={g.barWaktu}>
+                    <div 
+                      style={{ 
+                        ...g.isiWaktu, 
+                        width: `${(waktuSisa / WAKTU_PER_SOAL) * 100}%`,
+                        animation: 'none',
+                        transition: 'width 0.3s ease',
+                        backgroundColor: waktuSisa <= 5 ? '#ef4444' : 'var(--primary-purple)',
+                      }} 
+                    />
+                  </div>
                 </div>
 
                 <div style={g.areaPertanyaan}>
@@ -237,6 +289,20 @@ function KuisPage() {
             )}
           </div>
         </div>
+
+        {/* Popup Timeout */}
+        {showTimeoutPopup && (
+          <div style={g.overlayPopup}>
+            <div style={g.popup}>
+              <span style={{ fontSize: '48px' }}>⏰</span>
+              <h3 style={g.popupJudul}>Yah, Waktu Habis!</h3>
+              <p style={g.popupDeskripsi}>Kamu belum menjawab soal ini tepat waktu. Ayo lebih cepat di lain waktu!</p>
+              <div style={g.popupFooter}>
+                <span style={{ fontSize: '14px', color: '#94a3b8' }}>Mengalihkan ke daftar kuis...</span>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -323,9 +389,9 @@ function KuisPage() {
           0% { background-position: -400px 0; }
           100% { background-position: 400px 0; }
         }
-        @keyframes jalanWaktu {
-          0% { transform: scaleX(1); }
-          100% { transform: scaleX(0); }
+        @keyframes fadeIn {
+          from { opacity: 0; transform: scale(0.95); }
+          to { opacity: 1; transform: scale(1); }
         }
         @media (max-width: 968px) {
           .grid-materi-mobile { grid-template-columns: repeat(2, 1fr) !important; }
@@ -415,7 +481,7 @@ const g = {
   badgeLive: { fontSize: '12px', fontWeight: 800, color: '#d97706', backgroundColor: '#fef3c7', padding: '6px 14px', borderRadius: '100px', display: 'inline-block', marginBottom: '12px' } as React.CSSProperties,
   judulKuis: { fontSize: '24px', fontWeight: 800, color: 'var(--text-dark)', margin: 0, marginBottom: '20px' } as React.CSSProperties,
   barWaktu: { width: '100%', height: '6px', backgroundColor: '#f0f2f5', borderRadius: '100px', overflow: 'hidden' } as React.CSSProperties,
-  isiWaktu: { width: '100%', height: '100%', backgroundColor: 'var(--primary-purple)', borderRadius: '100px', animation: 'jalanWaktu 15s linear forwards', transformOrigin: 'left' } as React.CSSProperties,
+  isiWaktu: { width: '100%', height: '100%', backgroundColor: 'var(--primary-purple)', borderRadius: '100px', transformOrigin: 'left' } as React.CSSProperties,
 
   areaPertanyaan: { marginBottom: '32px' } as React.CSSProperties,
   teksPertanyaan: { fontSize: '18px', fontWeight: 600, color: 'var(--text-dark)', lineHeight: 1.5, marginBottom: '24px' } as React.CSSProperties,
@@ -446,6 +512,52 @@ const g = {
   skeletonCard: { backgroundColor: '#ffffff', borderRadius: '20px', overflow: 'hidden', border: '1px solid rgba(244,166,35,0.08)' } as React.CSSProperties,
   skeletonImg: { width: '100%', height: '180px', background: 'linear-gradient(90deg, #f0f2f5 25%, #e8eaed 50%, #f0f2f5 75%)', backgroundSize: '800px 100%', animation: 'shimmer 1.5s infinite' } as React.CSSProperties,
   skeletonLine: { borderRadius: '6px', background: 'linear-gradient(90deg, #f0f2f5 25%, #e8eaed 50%, #f0f2f5 75%)', backgroundSize: '800px 100%', animation: 'shimmer 1.5s infinite' } as React.CSSProperties,
+
+  // Popup styles
+  overlayPopup: {
+    position: 'fixed' as const,
+    top: 0,
+    left: 0,
+    width: '100%',
+    height: '100%',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    backdropFilter: 'blur(8px)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 9999,
+    animation: 'fadeIn 0.3s ease',
+  } as React.CSSProperties,
+
+  popup: {
+    backgroundColor: '#ffffff',
+    borderRadius: '24px',
+    padding: '40px',
+    maxWidth: '420px',
+    width: '90%',
+    textAlign: 'center' as const,
+    boxShadow: '0 30px 60px rgba(0,0,0,0.2)',
+    animation: 'fadeIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)',
+  } as React.CSSProperties,
+
+  popupJudul: {
+    fontSize: '24px',
+    fontWeight: 800,
+    color: 'var(--text-dark)',
+    margin: '16px 0 8px 0',
+  } as React.CSSProperties,
+
+  popupDeskripsi: {
+    fontSize: '15px',
+    color: '#64748b',
+    lineHeight: 1.6,
+    margin: '0 0 20px 0',
+  } as React.CSSProperties,
+
+  popupFooter: {
+    borderTop: '1px solid #f0f2f5',
+    paddingTop: '16px',
+  } as React.CSSProperties,
 };
 
 export default KuisPage;

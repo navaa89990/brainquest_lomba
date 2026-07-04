@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../lib/useAuth';
 import logo from '../assets/warnalogo.png';
 
 function Navbar() {
   const location = useLocation();
-  const { user, isAuthenticated } = useAuth();
+  const navigate = useNavigate();
+  const { user, isAuthenticated, logout } = useAuth();
   const [menuTerbuka, setMenuTerbuka] = useState(false);
   const [terscroll, setTerscroll] = useState(false);
   const [hpMenuBuka, setHpMenuBuka] = useState(false);
@@ -27,13 +28,40 @@ function Navbar() {
     setHpMenuBuka(false);
   }, [location]);
 
+  const isAdmin = isAuthenticated && user?.role === 'admin';
+  const dashboardPath = isAdmin ? '/admin' : '/dashboard';
+
   const navigation = [
     { name: 'Beranda', path: '/' },
     { name: 'Materi', path: '/materi' },
     { name: 'Arena Kuis', path: '/kuis' },
     { name: 'Leaderboard', path: '/leaderboard' },
-    ...(isAuthenticated && user?.role === 'admin' ? [{ name: 'Admin', path: '/admin' }] : []),
   ];
+
+  if (isAuthenticated) {
+    navigation.push({ name: 'Dashboard', path: dashboardPath });
+  }
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      navigate('/');
+    } catch (err) {
+      console.error('Logout error:', err);
+    }
+  };
+
+  const getInitials = (name: string) => {
+    if (!name) return 'U';
+    return name
+      .split(' ')
+      .map((word) => word.charAt(0))
+      .join('')
+      .toUpperCase()
+      .slice(0, 2);
+  };
 
   return (
     <header style={{
@@ -58,10 +86,10 @@ function Navbar() {
           }} aria-label="Main Navigation">
             <ul style={styles.menuList}>
               {navigation.map((item) => {
-                const isActive = location.pathname === item.path;
-                
+                const isActive = location.pathname === item.path || 
+                  (item.path === '/admin' && location.pathname.startsWith('/admin'));
                 return (
-                  <li key={item.name}>
+                  <li key={item.name} style={styles.menuItem}>
                     <Link
                       to={item.path}
                       style={{
@@ -85,10 +113,16 @@ function Navbar() {
             onMouseLeave={() => setMenuTerbuka(false)}
           >
             <button style={styles.profileBtn} aria-label="User Profile" aria-haspopup="true" aria-expanded={menuTerbuka}>
-              <div style={styles.avatarDesign}>
-                <div style={styles.avatarHead}></div>
-                <div style={styles.avatarBody}></div>
-              </div>
+              {isAuthenticated && user ? (
+                <div style={styles.avatarInitials}>
+                  {getInitials(user.fullName || user.username)}
+                </div>
+              ) : (
+                <div style={styles.avatarDesign}>
+                  <div style={styles.avatarHead}></div>
+                  <div style={styles.avatarBody}></div>
+                </div>
+              )}
             </button>
 
             <div style={{
@@ -97,9 +131,31 @@ function Navbar() {
               transform: menuTerbuka ? 'translateY(0)' : 'translateY(-10px)',
               pointerEvents: menuTerbuka ? 'auto' : 'none',
             }}>
-              <Link to="/login" style={styles.tombolMenu}>Login</Link>
-              <div style={styles.garisPembatas}></div>
-              <Link to="/daftar" style={styles.tombolMenuUtama}>Daftar</Link>
+              {isAuthenticated ? (
+                <>
+                  <div style={styles.userInfo}>
+                    <span style={styles.userName}>{user?.fullName || user?.username}</span>
+                    <span style={styles.userRole}>
+                      {user?.role === 'admin' ? '👑 Admin' : '👤 User'}
+                    </span>
+                  </div>
+                  <div style={styles.garisPembatas}></div>
+                  <Link to="/profile" style={styles.tombolMenu}>Profil</Link>
+                  <Link to={dashboardPath} style={styles.tombolMenu}>Dashboard</Link>
+                  <button 
+                    onClick={handleLogout}
+                    style={styles.tombolLogout}
+                  >
+                    Logout
+                  </button>
+                </>
+              ) : (
+                <>
+                  <Link to="/login" style={styles.tombolMenu}>Login</Link>
+                  <div style={styles.garisPembatas}></div>
+                  <Link to="/daftar" style={styles.tombolMenuUtama}>Daftar</Link>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -127,7 +183,8 @@ function Navbar() {
       }}>
         <nav style={styles.mobileNavList} aria-label="Mobile Navigation">
           {navigation.map((item) => {
-            const isActive = location.pathname === item.path;
+            const isActive = location.pathname === item.path ||
+              (item.path === '/admin' && location.pathname.startsWith('/admin'));
             return (
               <Link
                 key={item.name}
@@ -144,8 +201,26 @@ function Navbar() {
           })}
           <div style={styles.garisPembatasMobile}></div>
           <div style={styles.mobileAuthBlok}>
-            <Link to="/login" style={styles.mobileTombolLogin}>Login</Link>
-            <Link to="/daftar" style={styles.mobileTombolDaftar}>Daftar</Link>
+            {isAuthenticated ? (
+              <>
+                <span style={styles.mobileUserName}>
+                  👤 {user?.fullName || user?.username}
+                </span>
+                <Link to="/profile" style={styles.mobileTombolLogin}>Profil</Link>
+                <Link to={dashboardPath} style={styles.mobileTombolDaftar}>Dashboard</Link>
+                <button 
+                  onClick={handleLogout}
+                  style={styles.mobileTombolLogout}
+                >
+                  Logout
+                </button>
+              </>
+            ) : (
+              <>
+                <Link to="/login" style={styles.mobileTombolLogin}>Login</Link>
+                <Link to="/daftar" style={styles.mobileTombolDaftar}>Daftar</Link>
+              </>
+            )}
           </div>
         </nav>
       </div>
@@ -191,12 +266,15 @@ const styles = {
   leftSection: {
     display: 'flex',
     alignItems: 'center',
+    flexShrink: 0,
   } as React.CSSProperties,
 
   centerSection: {
     display: 'flex',
     justifyContent: 'center',
     alignItems: 'center',
+    flex: 1,
+    margin: '0 16px',
   } as React.CSSProperties,
 
   rightSectionDesktop: {
@@ -204,6 +282,11 @@ const styles = {
     justifyContent: 'flex-end',
     alignItems: 'center',
     position: 'relative',
+    flexShrink: 0,
+  } as React.CSSProperties,
+
+  rightSectionMobile: {
+    display: 'none',
   } as React.CSSProperties,
 
   profileWrapper: {
@@ -213,10 +296,6 @@ const styles = {
     alignItems: 'center',
     paddingBottom: '20px',
     marginTop: '20px',
-  } as React.CSSProperties,
-
-  rightSectionMobile: {
-    display: 'none',
   } as React.CSSProperties,
 
   brand: {
@@ -262,7 +341,9 @@ const styles = {
     alignItems: 'center',
     justifyContent: 'center',
     height: '48px',
-    width: '530px',
+    width: 'auto',
+    minWidth: '400px',
+    maxWidth: '600px',
     transition: 'all 0.4s cubic-bezier(0.25, 1, 0.5, 1)',
   } as React.CSSProperties,
 
@@ -275,16 +356,22 @@ const styles = {
   menuList: {
     display: 'flex',
     listStyle: 'none',
-    gap: '4px',
+    gap: '20px',
     margin: 0,
     padding: 0,
     width: '100%',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
+    alignItems: 'center',
+  } as React.CSSProperties,
+
+  menuItem: {
+    display: 'flex',
+    alignItems: 'center',
   } as React.CSSProperties,
 
   item: {
     display: 'block',
-    padding: '10px 22px',
+    padding: '8px 16px',
     fontWeight: 600,
     fontSize: '14px',
     color: 'var(--primary-purple)',
@@ -292,6 +379,7 @@ const styles = {
     borderRadius: '100px',
     transition: 'all 0.2s ease',
     textAlign: 'center',
+    whiteSpace: 'nowrap',
   } as React.CSSProperties,
 
   active: {
@@ -313,6 +401,9 @@ const styles = {
     boxShadow: '0 4px 14px rgba(244, 166, 35, 0.25)',
     padding: 0,
     overflow: 'hidden',
+    color: '#ffffff',
+    fontSize: '16px',
+    fontWeight: 700,
   } as React.CSSProperties,
 
   avatarDesign: {
@@ -341,6 +432,18 @@ const styles = {
     borderRadius: '100px 100px 0 0',
   } as React.CSSProperties,
 
+  avatarInitials: {
+    width: '100%',
+    height: '100%',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'var(--primary-purple)',
+    color: '#ffffff',
+    fontSize: '16px',
+    fontWeight: 700,
+  } as React.CSSProperties,
+
   kotakMelayang: {
     position: 'absolute',
     top: '54px',
@@ -358,6 +461,25 @@ const styles = {
     transition: 'opacity 0.25s ease, transform 0.25s ease',
   } as React.CSSProperties,
 
+  userInfo: {
+    padding: '4px 0',
+  } as React.CSSProperties,
+
+  userName: {
+    display: 'block',
+    fontSize: '14px',
+    fontWeight: 700,
+    color: '#0f172a',
+    textAlign: 'center',
+  } as React.CSSProperties,
+
+  userRole: {
+    display: 'block',
+    fontSize: '12px',
+    color: '#94a3b8',
+    textAlign: 'center',
+  } as React.CSSProperties,
+
   tombolMenu: {
     display: 'block',
     textAlign: 'center',
@@ -367,6 +489,7 @@ const styles = {
     fontSize: '14px',
     fontWeight: 600,
     borderRadius: '8px',
+    transition: 'background 0.2s ease',
   } as React.CSSProperties,
 
   tombolMenuUtama: {
@@ -379,6 +502,22 @@ const styles = {
     fontSize: '14px',
     fontWeight: 700,
     borderRadius: '8px',
+    transition: 'opacity 0.2s ease',
+  } as React.CSSProperties,
+
+  tombolLogout: {
+    display: 'block',
+    textAlign: 'center',
+    padding: '8px 0',
+    backgroundColor: '#fef2f2',
+    color: '#dc2626',
+    border: 'none',
+    fontSize: '14px',
+    fontWeight: 600,
+    borderRadius: '8px',
+    cursor: 'pointer',
+    width: '100%',
+    transition: 'background 0.2s ease',
   } as React.CSSProperties,
 
   garisPembatas: {
@@ -439,7 +578,16 @@ const styles = {
 
   mobileAuthBlok: {
     display: 'flex',
-    gap: '12px',
+    flexDirection: 'column',
+    gap: '8px',
+  } as React.CSSProperties,
+
+  mobileUserName: {
+    padding: '8px 4px',
+    fontSize: '14px',
+    fontWeight: 600,
+    color: '#0f172a',
+    textAlign: 'center',
   } as React.CSSProperties,
 
   mobileTombolLogin: {
@@ -464,6 +612,19 @@ const styles = {
     color: '#ffffff',
     textDecoration: 'none',
     backgroundColor: 'var(--primary-purple)',
+  } as React.CSSProperties,
+
+  mobileTombolLogout: {
+    textAlign: 'center',
+    padding: '12px 0',
+    borderRadius: '12px',
+    fontSize: '14px',
+    fontWeight: 600,
+    color: '#dc2626',
+    textDecoration: 'none',
+    backgroundColor: '#fef2f2',
+    border: 'none',
+    cursor: 'pointer',
   } as React.CSSProperties,
 };
 

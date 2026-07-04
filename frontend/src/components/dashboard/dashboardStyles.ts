@@ -65,4 +65,57 @@ export const styles: { [key: string]: React.CSSProperties } = {
   riwayatKategori: { fontSize: '12px', color: '#718096', margin: 0 },
   riwayatInfoKanan: { display: 'flex', alignItems: 'center' },
   skorBadge: { fontSize: '13px', fontWeight: 700, padding: '6px 14px', borderRadius: '100px' },
+  emptyStateContainer: {
+  display: 'flex',
+  flexDirection: 'column' as const,
+  alignItems: 'center',
+  justifyContent: 'center',
+  padding: '60px 20px',
+  backgroundColor: '#ffffff',
+  borderRadius: '24px',
+  border: '1px solid #e2e8f0',
+  textAlign: 'center' as const,
+} as React.CSSProperties,
+
+emptyIcon: {
+  fontSize: '56px',
+  marginBottom: '16px',
+} as React.CSSProperties,
+
+emptyTitle: {
+  fontSize: '20px',
+  fontWeight: 700,
+  color: '#0f172a',
+  margin: '0 0 8px 0',
+} as React.CSSProperties,
+
+emptyDesc: {
+  fontSize: '15px',
+  color: '#64748b',
+  margin: '0 0 24px 0',
+  maxWidth: '400px',
+} as React.CSSProperties,
+
+pilihMateriButton: {
+  cursor: 'pointer',
+  position: 'relative' as const,
+  padding: '12px 32px',
+  fontSize: '16px',
+  color: '#F4A623',
+  border: '2px solid #F4A623',
+  borderRadius: '34px',
+  backgroundColor: 'transparent',
+  fontWeight: 700,
+  transition: 'all 0.3s cubic-bezier(0.23, 1, 0.320, 1)',
+  overflow: 'hidden',
+  fontFamily: 'inherit',
+} as React.CSSProperties,
+
+skeletonCard: {
+  backgroundColor: '#ffffff',
+  borderRadius: '20px',
+  overflow: 'hidden',
+  border: '1px solid #e2e8f0',
+  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.04)',
+} as React.CSSProperties,
 };

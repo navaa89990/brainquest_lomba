@@ -1,72 +1,625 @@
-import { styles } from './dashboardStyles';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../lib/useAuth';
+import { apiService } from '../../lib/apiService';
 
 interface MateriItem {
   id: number;
   title: string;
-  desc: string;
+  content: string;
+  category: string;
   progress: number;
 }
 
+interface MateriData {
+  id: number;
+  title: string;
+  content: string;
+  category: string;
+  parent_id?: number | null;
+}
+
 export default function Materi() {
-  const materiList: MateriItem[] = [
-    { id: 1, title: 'Matematika Dasar', desc: 'Pemahaman konsep aljabar dan aritmatika', progress: 75 },
-    { id: 2, title: 'Fisika Mekanika', desc: 'Hukum Newton dan aplikasinya', progress: 40 },
-    { id: 3, title: 'Biologi Sel', desc: 'Struktur dan fungsi sel makhluk hidup', progress: 0 },
-    { id: 4, title: 'Kimia Dasar', desc: 'Sistem periodik dan ikatan kimia', progress: 100 },
-  ];
+  const navigate = useNavigate();
+  const { token } = useAuth();
+  const [materiList, setMateriList] = useState<MateriItem[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchMaterials = async () => {
+      setLoading(true);
+      try {
+        const response = await apiService.getMaterials(1, 100);
+        const materials = response?.materials || [];
+
+        const parentMaterials = materials.filter(
+          (m: MateriData) => m.parent_id === null || m.parent_id === undefined
+        );
+
+        const mapped = parentMaterials.map((m: MateriData) => ({
+          id: m.id,
+          title: m.title,
+          content: m.content || 'Belum ada deskripsi',
+          category: m.category || 'Umum',
+          progress: 0,
+        }));
+
+        setMateriList(mapped);
+      } catch (err) {
+        console.error('Error fetching materials:', err);
+        setMateriList([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchMaterials();
+  }, [token]);
+
+  const truncateText = (text: string, maxLength: number = 60) => {
+    if (text.length <= maxLength) return text;
+    return text.slice(0, maxLength) + '...';
+  };
+
+  const getInitials = (title: string) => {
+    return title
+      .split(' ')
+      .map((word) => word.charAt(0))
+      .join('')
+      .toUpperCase()
+      .slice(0, 2);
+  };
+
+  const getCategoryColor = (category: string) => {
+    const colors: { [key: string]: string } = {
+      'Matematika': '#6366f1',
+      'Pemrograman': '#f59e0b',
+      'Bahasa Inggris': '#10b981',
+      'Bahasa Indonesia': '#ef4444',
+      'Pengetahuan Umum': '#8b5cf6',
+      'Sains': '#06b6d4',
+      'Fisika': '#3b82f6',
+      'Kimia': '#8b5cf6',
+      'Biologi': '#10b981',
+    };
+    return colors[category] || '#94a3b8';
+  };
+
+  if (loading) {
+    return (
+      <div>
+        <header style={styles.header}>
+          <h2 style={styles.headerTitle}>Materi Belajar</h2>
+          <p style={styles.headerSub}>Memuat materi...</p>
+        </header>
+        <div style={styles.cardsGrid}>
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} style={styles.skeletonCard}>
+              <div style={styles.skeletonImage} />
+              <div style={styles.skeletonBody}>
+                <div style={styles.skeletonLine} />
+                <div style={{ ...styles.skeletonLine, width: '80%' }} />
+                <div style={{ ...styles.skeletonLine, width: '40%' }} />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (materiList.length === 0) {
+    return (
+      <div>
+        <header style={styles.header}>
+          <h2 style={styles.headerTitle}>Materi Belajar</h2>
+          <p style={styles.headerSub}>Belum ada materi yang tersedia untukmu.</p>
+        </header>
+        <div style={styles.emptyContainer}>
+          <span style={styles.emptyIcon}>📚</span>
+          <h3 style={styles.emptyTitle}>Belum Ada Materi</h3>
+          <p style={styles.emptyDesc}>Kamu belum memulai materi apapun. Pilih materi dari daftar yang tersedia untuk memulai petualangan belajarmu!</p>
+          <button 
+            onClick={() => navigate('/materi')}
+            style={styles.pilihButton}
+            className="tombol-pilih-materi"
+          >
+            Pilih Materi
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <>
-      <header style={{ marginBottom: '24px' }}>
-        <h2 style={{ fontSize: '24px', fontWeight: 800, color: '#2d3748', margin: '0 0 8px 0' }}>Materi Belajar</h2>
-        <p style={{ color: '#718096' }}>Pilih materi untuk melanjutkan petualangan belajarmu hari ini.</p>
+    <div>
+      <header style={styles.header}>
+        <h2 style={styles.headerTitle}>Materi Belajar</h2>
+        <p style={styles.headerSub}>Pilih materi untuk melanjutkan petualangan belajarmu hari ini.</p>
       </header>
 
-      <section style={styles.cardsGrid} className="dashboard-cards-grid">
-        {materiList.map((materi) => (
-          <article key={materi.id} style={styles.kartuUtama} className="kartu">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
-              <div style={{ padding: '12px', backgroundColor: '#eff6ff', borderRadius: '12px', color: '#3b82f6' }}>
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
-                  <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
-                </svg>
-              </div>
-              {materi.progress === 100 && (
-                <span style={{ fontSize: '12px', fontWeight: 800, backgroundColor: '#ecfdf5', color: '#10b981', padding: '4px 10px', borderRadius: '8px' }}>SELESAI</span>
-              )}
-            </div>
-            
-            <h3 style={{ ...styles.kartuJudul, marginBottom: '8px' }}>{materi.title}</h3>
-            <p style={{ fontSize: '13px', color: '#718096', marginBottom: '20px', flexGrow: 1 }}>{materi.desc}</p>
-            
-            <div>
-              <div style={styles.questHeader}>
-                <span style={styles.questProgressTeks}>Progres</span>
-                <span style={styles.questPersen}>{materi.progress}%</span>
-              </div>
-              <div style={styles.progressBarBg}>
-                <div style={{ 
-                  ...styles.progressBarFill, 
-                  width: `${materi.progress}%`, 
-                  backgroundColor: materi.progress === 100 ? '#10b981' : '#F4A623' 
-                }}></div>
-              </div>
-            </div>
+      <section style={styles.cardsGrid}>
+        {materiList.slice(0, 6).map((materi) => (
+          <div 
+            key={materi.id} 
+            style={styles.cardWrapper}
+            className="materi-card"
+            onClick={() => navigate(`/materi/${materi.id}`)}
+          >
+            <div style={styles.cardInner}>
+              <div style={styles.cardContent}>
+                <div style={styles.cardHeader}>
+                  <div style={{ 
+                    ...styles.iconBox, 
+                    backgroundColor: `${getCategoryColor(materi.category)}15`,
+                    color: getCategoryColor(materi.category),
+                  }}>
+                    {getInitials(materi.title)}
+                  </div>
+                  {materi.progress === 100 && (
+                    <span style={styles.completedBadge}>✓ Selesai</span>
+                  )}
+                </div>
+                
+                <h3 style={styles.cardTitle}>{materi.title}</h3>
+                <p style={styles.cardDesc}>{truncateText(materi.content, 55)}</p>
+                
+                <div style={styles.cardFooter}>
+                  <div style={styles.progressHeader}>
+                    <span style={styles.progressLabel}>Progres</span>
+                    <span style={styles.progressValue}>{materi.progress}%</span>
+                  </div>
+                  <div style={styles.progressBar}>
+                    <div style={{ 
+                      ...styles.progressFill, 
+                      width: `${materi.progress}%`,
+                      backgroundColor: materi.progress === 100 ? '#10b981' : '#F4A623'
+                    }} />
+                  </div>
+                </div>
 
-            <button style={{ 
-              ...styles.btnBannerCta, 
-              backgroundColor: '#eff6ff', 
-              color: '#3b82f6', 
-              width: '100%', 
-              marginTop: '16px', 
-              boxShadow: 'none' 
-            }}>
-              {materi.progress === 0 ? 'Mulai Belajar' : materi.progress === 100 ? 'Ulas Ulang' : 'Lanjutkan'}
-            </button>
-          </article>
+                <button 
+                  style={styles.cardButton}
+                  className="tombol-efek-ringan"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    navigate(`/materi/${materi.id}`);
+                  }}
+                >
+                  {materi.progress === 0 ? 'Mulai Belajar' : materi.progress === 100 ? 'Ulas Ulang' : 'Lanjutkan'}
+                </button>
+              </div>
+            </div>
+          </div>
         ))}
       </section>
-    </>
+
+      <style>{`
+        .materi-card {
+          cursor: pointer;
+          transition: all 0.3s ease;
+          border-radius: 20px;
+          background: linear-gradient(145deg, #f59e0b, #d97706);
+          padding: 2px;
+          position: relative;
+        }
+
+        .materi-card:hover {
+          transform: translateY(-6px);
+          box-shadow: 0px 0px 30px 1px rgba(244, 166, 35, 0.25);
+        }
+
+        .materi-card .card-inner {
+          background: #ffffff;
+          border-radius: 18px;
+          height: 100%;
+          transition: all 0.3s ease;
+          overflow: hidden;
+        }
+
+        .materi-card:hover .card-inner {
+          background: #fafafa;
+        }
+
+        .card-content {
+          padding: 20px;
+          display: flex;
+          flex-direction: column;
+          height: 100%;
+          min-height: 260px;
+        }
+
+        .card-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-start;
+          margin-bottom: 10px;
+        }
+
+        .icon-box {
+          width: 40px;
+          height: 40px;
+          border-radius: 12px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 14px;
+          font-weight: 700;
+          flex-shrink: 0;
+        }
+
+        .card-title {
+          font-size: 15px;
+          font-weight: 700;
+          color: #0f172a;
+          margin: 0 0 4px 0;
+          line-height: 1.3;
+          display: -webkit-box;
+          -webkit-line-clamp: 2;
+          -webkit-box-orient: vertical;
+          overflow: hidden;
+        }
+
+        .card-desc {
+          font-size: 12px;
+          color: #64748b;
+          margin: 0 0 14px 0;
+          line-height: 1.5;
+          flex: 1;
+          display: -webkit-box;
+          -webkit-line-clamp: 3;
+          -webkit-box-orient: vertical;
+          overflow: hidden;
+        }
+
+        .card-footer {
+          margin-top: auto;
+        }
+
+        .progress-header {
+          display: flex;
+          justify-content: space-between;
+          font-size: 11px;
+          font-weight: 600;
+          color: #64748b;
+          margin-bottom: 4px;
+        }
+
+        .progress-label {
+          color: #475569;
+        }
+
+        .progress-value {
+          color: #F4A623;
+        }
+
+        .progress-bar {
+          height: 5px;
+          background-color: #e2e8f0;
+          border-radius: 100px;
+          overflow: hidden;
+          margin-bottom: 12px;
+        }
+
+        .progress-fill {
+          height: 100%;
+          border-radius: 100px;
+          transition: width 0.6s ease;
+        }
+
+        .card-button {
+          width: 100%;
+          padding: 9px 0;
+          background-color: #f1f5f9;
+          color: #475569;
+          border: none;
+          border-radius: 10px;
+          font-size: 12px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          font-family: inherit;
+        }
+
+        .card-button:hover {
+          background-color: #F4A623;
+          color: #ffffff;
+        }
+
+        .completed-badge {
+          font-size: 10px;
+          font-weight: 700;
+          background-color: #ecfdf5;
+          color: #10b981;
+          padding: 3px 10px;
+          border-radius: 100px;
+        }
+
+        .tombol-pilih-materi {
+          cursor: pointer;
+          position: relative;
+          padding: 12px 32px;
+          font-size: 16px;
+          color: #F4A623;
+          border: 2px solid #F4A623;
+          border-radius: 34px;
+          background-color: transparent;
+          font-weight: 700;
+          transition: all 0.3s cubic-bezier(0.23, 1, 0.320, 1);
+          overflow: hidden;
+          font-family: inherit;
+        }
+
+        .tombol-pilih-materi::before {
+          content: '';
+          position: absolute;
+          inset: 0;
+          margin: auto;
+          width: 50px;
+          height: 50px;
+          border-radius: inherit;
+          scale: 0;
+          z-index: -1;
+          background-color: #F4A623;
+          transition: all 0.6s cubic-bezier(0.23, 1, 0.320, 1);
+        }
+
+        .tombol-pilih-materi:hover::before {
+          scale: 3;
+        }
+
+        .tombol-pilih-materi:hover {
+          color: #ffffff;
+          scale: 1.05;
+          box-shadow: 0 0px 20px rgba(244, 166, 35, 0.4);
+        }
+
+        .tombol-pilih-materi:active {
+          scale: 1;
+        }
+
+        @media (max-width: 768px) {
+          .card-content {
+            min-height: 220px;
+            padding: 16px;
+          }
+          .card-title {
+            font-size: 14px;
+          }
+          .card-desc {
+            font-size: 11px;
+          }
+          .empty-title {
+            font-size: 18px;
+          }
+          .tombol-pilih-materi {
+            padding: 10px 24px;
+            font-size: 14px;
+          }
+        }
+      `}</style>
+    </div>
   );
 }
+
+const styles = {
+  header: {
+    marginBottom: '24px',
+  } as React.CSSProperties,
+
+  headerTitle: {
+    fontSize: '24px',
+    fontWeight: 800,
+    color: '#2d3748',
+    margin: '0 0 8px 0',
+  } as React.CSSProperties,
+
+  headerSub: {
+    color: '#718096',
+    margin: 0,
+  } as React.CSSProperties,
+
+  cardsGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(3, 1fr)',
+    gap: '20px',
+  } as React.CSSProperties,
+
+  cardWrapper: {
+    cursor: 'pointer',
+    transition: 'all 0.3s ease',
+    borderRadius: '20px',
+    background: 'linear-gradient(145deg, #f59e0b, #d97706)',
+    padding: '2px',
+    position: 'relative' as const,
+  } as React.CSSProperties,
+
+  cardInner: {
+    background: '#ffffff',
+    borderRadius: '18px',
+    height: '100%',
+    transition: 'all 0.3s ease',
+    overflow: 'hidden',
+  } as React.CSSProperties,
+
+  cardContent: {
+    padding: '20px',
+    display: 'flex',
+    flexDirection: 'column' as const,
+    height: '100%',
+    minHeight: '260px',
+  } as React.CSSProperties,
+
+  cardHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: '10px',
+  } as React.CSSProperties,
+
+  iconBox: {
+    width: '40px',
+    height: '40px',
+    borderRadius: '12px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: '14px',
+    fontWeight: 700,
+    flexShrink: 0,
+  } as React.CSSProperties,
+
+  cardTitle: {
+    fontSize: '15px',
+    fontWeight: 700,
+    color: '#0f172a',
+    margin: '0 0 4px 0',
+    lineHeight: 1.3,
+    display: '-webkit-box',
+    WebkitLineClamp: 2,
+    WebkitBoxOrient: 'vertical' as const,
+    overflow: 'hidden',
+  } as React.CSSProperties,
+
+  cardDesc: {
+    fontSize: '12px',
+    color: '#64748b',
+    margin: '0 0 14px 0',
+    lineHeight: 1.5,
+    flex: 1,
+    display: '-webkit-box',
+    WebkitLineClamp: 3,
+    WebkitBoxOrient: 'vertical' as const,
+    overflow: 'hidden',
+  } as React.CSSProperties,
+
+  cardFooter: {
+    marginTop: 'auto',
+  } as React.CSSProperties,
+
+  progressHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    fontSize: '11px',
+    fontWeight: 600,
+    color: '#64748b',
+    marginBottom: '4px',
+  } as React.CSSProperties,
+
+  progressLabel: {
+    color: '#475569',
+  } as React.CSSProperties,
+
+  progressValue: {
+    color: '#F4A623',
+  } as React.CSSProperties,
+
+  progressBar: {
+    height: '5px',
+    backgroundColor: '#e2e8f0',
+    borderRadius: '100px',
+    overflow: 'hidden',
+    marginBottom: '12px',
+  } as React.CSSProperties,
+
+  progressFill: {
+    height: '100%',
+    borderRadius: '100px',
+    transition: 'width 0.6s ease',
+  } as React.CSSProperties,
+
+  cardButton: {
+    width: '100%',
+    padding: '9px 0',
+    backgroundColor: '#f1f5f9',
+    color: '#475569',
+    border: 'none',
+    borderRadius: '10px',
+    fontSize: '12px',
+    fontWeight: 600,
+    cursor: 'pointer',
+    transition: 'all 0.2s ease',
+    fontFamily: 'inherit',
+  } as React.CSSProperties,
+
+  completedBadge: {
+    fontSize: '10px',
+    fontWeight: 700,
+    backgroundColor: '#ecfdf5',
+    color: '#10b981',
+    padding: '3px 10px',
+    borderRadius: '100px',
+  } as React.CSSProperties,
+
+  emptyContainer: {
+    display: 'flex',
+    flexDirection: 'column' as const,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '60px 20px',
+    backgroundColor: '#ffffff',
+    borderRadius: '24px',
+    border: '1px solid #e2e8f0',
+    textAlign: 'center' as const,
+  } as React.CSSProperties,
+
+  emptyIcon: {
+    fontSize: '56px',
+    marginBottom: '16px',
+  } as React.CSSProperties,
+
+  emptyTitle: {
+    fontSize: '20px',
+    fontWeight: 700,
+    color: '#0f172a',
+    margin: '0 0 8px 0',
+  } as React.CSSProperties,
+
+  emptyDesc: {
+    fontSize: '15px',
+    color: '#64748b',
+    margin: '0 0 24px 0',
+    maxWidth: '400px',
+  } as React.CSSProperties,
+
+  pilihButton: {
+    cursor: 'pointer',
+    position: 'relative' as const,
+    padding: '12px 32px',
+    fontSize: '16px',
+    color: '#F4A623',
+    border: '2px solid #F4A623',
+    borderRadius: '34px',
+    backgroundColor: 'transparent',
+    fontWeight: 700,
+    transition: 'all 0.3s cubic-bezier(0.23, 1, 0.320, 1)',
+    overflow: 'hidden',
+    fontFamily: 'inherit',
+  } as React.CSSProperties,
+
+  skeletonCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: '20px',
+    overflow: 'hidden',
+    border: '1px solid #e2e8f0',
+  } as React.CSSProperties,
+
+  skeletonImage: {
+    height: '120px',
+    backgroundColor: '#f1f5f9',
+  } as React.CSSProperties,
+
+  skeletonBody: {
+    padding: '16px',
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: '8px',
+  } as React.CSSProperties,
+
+  skeletonLine: {
+    height: '14px',
+    backgroundColor: '#f1f5f9',
+    borderRadius: '4px',
+    width: '60%',
+  } as React.CSSProperties,
+};

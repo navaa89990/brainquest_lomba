@@ -54,7 +54,7 @@ function LoginPage() {
               </div>
               <span style={styles.teksLogo}>BrainQuest</span>
             </div>
-            <h1 style={styles.judulKiri}>Selamat Datang Kembali! 👋</h1>
+            <h1 style={styles.judulKiri}>Selamat Datang Kembali!</h1>
             <p style={styles.subKiri}>Masuk dan lanjutkan perjalanan belajarmu. Raih XP lebih banyak hari ini!</p>
             <div style={styles.wadahMockup}>
               <img src={laptop} alt="BrainQuest Dashboard" style={styles.gambarMockup} />

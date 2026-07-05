@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Flame, Sparkles, Trophy, BookOpen, CheckCircle2 } from 'lucide-react';
 import { useAuth } from '../lib/useAuth';
 import { apiService } from '../lib/apiService';
 import logo from '../assets/warnalogo.png';
@@ -7,7 +8,6 @@ import Materi from '../components/dashboard/Materi';
 import ArenaKuis from '../components/dashboard/ArenaKuis';
 import Leaderboard from '../components/dashboard/LeaderBoard';
 import Pengaturan from '../components/dashboard/Pengaturan';
-import { styles } from '../components/dashboard/dashboardStyles';
 
 interface QuizHistory {
   id: number;
@@ -37,11 +37,7 @@ function DashboardPage() {
   const [loadingHistory, setLoadingHistory] = useState(true);
   const [recommendedMaterials, setRecommendedMaterials] = useState<MateriData[]>([]);
 
-  useEffect(() => {
-    if (user?.role === 'admin') {
-      navigate('/admin');
-    }
-  }, [navigate, user]);
+  const isAdmin = user?.role === 'admin';
 
   useEffect(() => {
     const fetchData = async () => {
@@ -133,6 +129,7 @@ function DashboardPage() {
 
   const menuItems = [
     { id: 'ringkasan', label: 'Ringkasan', icon: 'M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z' },
+    ...(isAdmin ? [{ id: 'admin-panel', label: 'Panel Admin', icon: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z' }] : []),
     { id: 'materi', label: 'Materi Belajar', icon: 'M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253' },
     { id: 'kuis', label: 'Arena Kuis', icon: 'M9.663 17h4.673M12 3v1m6.364 .364l-.707 .707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z' },
     { id: 'leaderboard', label: 'Leaderboard', icon: 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z' },
@@ -164,8 +161,6 @@ function DashboardPage() {
   const getParentMaterials = () => {
     return allMaterials.filter((m) => m.parent_id === null || m.parent_id === undefined);
   };
-
-  const gaya = styles;
 
   return (
     <div style={gaya.dashboardContainer}>
@@ -289,16 +284,16 @@ function DashboardPage() {
                 <line x1="3" y1="18" x2="21" y2="18"></line>
               </svg>
             </button>
-            <h1 style={gaya.headerGreeting} className="header-greeting">Halo, {displayUser.nama}! 👋</h1>
+            <h1 style={gaya.headerGreeting} className="header-greeting">Halo, {displayUser.nama}! {isAdmin ? <Sparkles size={24} style={{ marginLeft: '6px', display: 'inline-block' }} /> : <Sparkles size={24} style={{ marginLeft: '6px', display: 'inline-block' }} />}</h1>
           </div>
           
           <div style={gaya.headerKanan}>
             <div style={gaya.statsIconGroup} className="stats-group" aria-label="Statistik Pengguna">
               <span style={gaya.statBadge} title={`${displayUser.streak} Hari Streak`}>
-                <span aria-hidden="true">🔥</span> {displayUser.streak}<span className="stat-teks"> Hari Streak</span>
+                <span aria-hidden="true"><Flame size={16} color="#f97316" /></span> {displayUser.streak}<span className="stat-teks"> Hari Streak</span>
               </span>
               <span style={gaya.statBadgeAmber} title={`Peringkat ${displayUser.rank}`}>
-                <span aria-hidden="true">🏆</span> Peringkat <span className="stat-teks">#{displayUser.rank}</span>
+                <span aria-hidden="true"><Trophy size={16} color="#f59e0b" /></span> Peringkat <span className="stat-teks">#{displayUser.rank}</span>
               </span>
             </div>
             
@@ -311,7 +306,19 @@ function DashboardPage() {
         </header>
 
         <div style={gaya.contentBody} className="content-body">
-            {activeMenu === 'materi' ? (
+            {activeMenu === 'admin-panel' ? (
+              <div style={gaya.contentBody}>
+                <section style={gaya.bannerInfo} className="banner-info" aria-labelledby="banner-judul-admin">
+                  <div style={gaya.bannerTeks}>
+                    <h2 id="banner-judul-admin" style={gaya.bannerJudul}>Mode Admin Aktif</h2>
+                    <p style={gaya.bannerSubjudul}>Kelola pengguna, pantau progres, dan atur konten dari panel admin.</p>
+                  </div>
+                  <button onClick={() => navigate('/admin')} style={gaya.btnBannerCta} className="btn-banner">
+                    Buka Panel Admin
+                  </button>
+                </section>
+              </div>
+            ) : activeMenu === 'materi' ? (
               <Materi />
             ) : activeMenu === 'kuis' ? (
               <ArenaKuis />
@@ -321,15 +328,27 @@ function DashboardPage() {
               <Pengaturan />
             ) : (
               <>
-                <section style={gaya.bannerInfo} className="banner-info" aria-labelledby="banner-judul">
-                  <div style={gaya.bannerTeks}>
-                    <h2 id="banner-judul" style={gaya.bannerJudul}>Petualangan Belajarmu Baru Saja Dimulai!</h2>
-                    <p style={gaya.bannerSubjudul}>Selesaikan quest harianmu untuk mengklaim bonus XP dan mempertahankan streak belajarmu.</p>
-                  </div>
-                  <button onClick={() => navigate('/kuis')} style={gaya.btnBannerCta} className="btn-banner">
-                    Mulai Kuis Sekarang
-                  </button>
-                </section>
+                {isAdmin ? (
+                  <section style={gaya.bannerInfo} className="banner-info" aria-labelledby="banner-judul">
+                    <div style={gaya.bannerTeks}>
+                      <h2 id="banner-judul" style={gaya.bannerJudul}>Dashboard Admin</h2>
+                      <p style={gaya.bannerSubjudul}>Anda melihat mode khusus untuk mengelola pengguna, konten, dan perkembangan belajar.</p>
+                    </div>
+                    <button onClick={() => navigate('/admin')} style={gaya.btnBannerCta} className="btn-banner">
+                      Buka Panel Admin
+                    </button>
+                  </section>
+                ) : (
+                  <section style={gaya.bannerInfo} className="banner-info" aria-labelledby="banner-judul">
+                    <div style={gaya.bannerTeks}>
+                      <h2 id="banner-judul" style={gaya.bannerJudul}>Petualangan Belajarmu Baru Saja Dimulai!</h2>
+                      <p style={gaya.bannerSubjudul}>Selesaikan quest harianmu untuk mengklaim bonus XP dan mempertahankan streak belajarmu.</p>
+                    </div>
+                    <button onClick={() => navigate('/kuis')} style={gaya.btnBannerCta} className="btn-banner">
+                      Mulai Kuis Sekarang
+                    </button>
+                  </section>
+                )}
 
                 <section style={gaya.cardsGrid} className="dashboard-cards-grid" aria-label="Informasi Progres Belajar">
                   <article style={gaya.kartuUtama} className="kartu">
@@ -355,15 +374,15 @@ function DashboardPage() {
                     </div>
                     <ul style={gaya.questList}>
                       <li style={gaya.questItem}>
-                        <span style={gaya.questCheckSelesai} aria-hidden="true">✓</span>
+                        <span style={gaya.questCheckSelesai} aria-hidden="true"><CheckCircle2 size={16} /></span>
                         <span style={gaya.questItemTeksSelesai}>Kerjakan kuis harian Matematika (+50 XP)</span>
                       </li>
                       <li style={gaya.questItem}>
-                        <span style={gaya.questCheckSelesai} aria-hidden="true">✓</span>
+                        <span style={gaya.questCheckSelesai} aria-hidden="true"><CheckCircle2 size={16} /></span>
                         <span style={gaya.questItemTeksSelesai}>Baca 1 artikel materi baru (+30 XP)</span>
                       </li>
                       <li style={gaya.questItem}>
-                        <span style={gaya.questCheckBelum} aria-hidden="true">○</span>
+                        <span style={gaya.questCheckBelum} aria-hidden="true"><Sparkles size={16} /></span>
                         <span style={gaya.questItemTeksBelum}>Capai akurasi 100% pada satu kuis (+100 XP)</span>
                       </li>
                     </ul>
@@ -419,7 +438,7 @@ function DashboardPage() {
                           return (
                             <div key={i} style={gaya.riwayatItem} className="riwayat-item">
                               <div style={gaya.riwayatInfoKiri}>
-                                <div style={gaya.ikonBukuKecil} aria-hidden="true">📖</div>
+                                <div style={gaya.ikonBukuKecil} aria-hidden="true"><BookOpen size={18} color="#6366f1" /></div>
                                 <div>
                                   <h4 style={gaya.riwayatJudulTeks}>
                                     {quiz.material_title || `Kuis #${quiz.material_id}`}
@@ -447,7 +466,7 @@ function DashboardPage() {
                         {getParentMaterials().slice(0, 5).map((mat) => (
                           <div key={mat.id} style={gaya.riwayatItem} className="riwayat-item">
                             <div style={gaya.riwayatInfoKiri}>
-                              <div style={gaya.ikonBukuKecil} aria-hidden="true">📖</div>
+                              <div style={gaya.ikonBukuKecil} aria-hidden="true"><BookOpen size={18} color="#6366f1" /></div>
                               <div>
                                 <h4 style={gaya.riwayatJudulTeks}>{mat.title}</h4>
                                 <p style={gaya.riwayatKategori}>{mat.category} • Belum Dikerjakan</p>
@@ -470,7 +489,7 @@ function DashboardPage() {
                       </div>
                     ) : (
                       <div style={gaya.kosongContainer}>
-                        <span style={gaya.kosongIcon}>📭</span>
+                        <span style={gaya.kosongIcon}><Sparkles size={32} color="#a855f7" /></span>
                         <p style={gaya.kosongText}>Belum ada materi tersedia</p>
                       </div>
                     )}
@@ -1154,7 +1173,14 @@ const gaya = {
   } as React.CSSProperties,
 
   ikonBukuKecil: {
-    fontSize: '20px',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '20px',
+    height: '20px',
+    color: '#6366f1',
+    flexShrink: 0,
+    opacity: 0.95,
   } as React.CSSProperties,
 
   riwayatJudulTeks: {

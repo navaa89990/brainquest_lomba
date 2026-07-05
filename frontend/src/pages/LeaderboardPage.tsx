@@ -47,7 +47,7 @@ const Leaderboard: React.FC = () => {
           <ul style={style.userList}>
             {users.map((user) => (
               <li key={user.id} style={style.listItem}>
-                <span>{user.name}</span> <strong>{user.xp} pts</strong>
+                <span>{user.fullName || user.username}</span> <strong>{user.points} pts</strong>
               </li>
             ))}
           </ul>

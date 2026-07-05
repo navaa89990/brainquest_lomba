@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { MdPerson, MdShield } from 'react-icons/md';
 import { useAuth } from '../lib/useAuth';
 import logo from '../assets/warnalogo.png';
 
@@ -136,7 +137,11 @@ function Navbar() {
                   <div style={styles.userInfo}>
                     <span style={styles.userName}>{user?.fullName || user?.username}</span>
                     <span style={styles.userRole}>
-                      {user?.role === 'admin' ? '👑 Admin' : '👤 User'}
+                      {user?.role === 'admin' ? (
+                        <><MdShield size={14} style={{ marginRight: '6px' }} /> Admin</>
+                      ) : (
+                        <><MdPerson size={14} style={{ marginRight: '6px' }} /> User</>
+                      )}
                     </span>
                   </div>
                   <div style={styles.garisPembatas}></div>
@@ -204,7 +209,7 @@ function Navbar() {
             {isAuthenticated ? (
               <>
                 <span style={styles.mobileUserName}>
-                  👤 {user?.fullName || user?.username}
+                  <MdPerson size={16} style={{ marginRight: '6px' }} /> {user?.fullName || user?.username}
                 </span>
                 <Link to="/profile" style={styles.mobileTombolLogin}>Profil</Link>
                 <Link to={dashboardPath} style={styles.mobileTombolDaftar}>Dashboard</Link>

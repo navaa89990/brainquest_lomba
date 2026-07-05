@@ -19,7 +19,7 @@ passport.use(
     { usernameField: 'email' },
     async (email, password, done) => {
       try {
-        const user = await router.db.get('SELECT * FROM users WHERE email = ?', [email]);
+        const user = await globalThis.__brainquestDb.get('SELECT * FROM users WHERE email = ?', [email]);
         if (!user) {
           return done(null, false, { message: 'User not found' });
         }
@@ -48,20 +48,20 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
       },
       async (accessToken, refreshToken, profile, done) => {
         try {
-          let user = await router.db.get('SELECT * FROM users WHERE google_id = ?', [profile.id]);
+          let user = await globalThis.__brainquestDb.get('SELECT * FROM users WHERE google_id = ?', [profile.id]);
 
           if (!user) {
             // Create new user from Google profile
             const email = profile.emails?.[0]?.value || `${profile.id}@google.com`;
             const username = profile.displayName?.replace(/\s+/g, '_').toLowerCase() || profile.id;
 
-            const result = await router.db.run(
+            const result = await globalThis.__brainquestDb.run(
               `INSERT INTO users (google_id, email, username, full_name, profile_picture, points, level)
                VALUES (?, ?, ?, ?, ?, ?, ?)`,
               [profile.id, email, username, profile.displayName, profile.photos?.[0]?.value, 0, 1]
             );
 
-            user = await router.db.get('SELECT * FROM users WHERE id = ?', [result.lastID]);
+            user = await globalThis.__brainquestDb.get('SELECT * FROM users WHERE id = ?', [result.lastID]);
           }
 
           return done(null, user);
@@ -79,7 +79,7 @@ passport.serializeUser((user, done) => {
 
 passport.deserializeUser(async (id, done) => {
   try {
-    const user = await router.db.get('SELECT * FROM users WHERE id = ?', [id]);
+    const user = await globalThis.__brainquestDb.get('SELECT * FROM users WHERE id = ?', [id]);
     done(null, user);
   } catch (err) {
     done(err);
@@ -194,7 +194,7 @@ router.get(
   '/google/callback',
   passport.authenticate('google', { failureRedirect: `${process.env.FRONTEND_URL}/login` }),
   (req, res) => {
-    const token = generateToken(req.user.id, req.user.email, req.user.username);
+    const token = generateToken(req.user.id, req.user.email, req.user.username, req.user.role);
     res.redirect(`${process.env.FRONTEND_URL}/dashboard?token=${token}`);
   }
 );

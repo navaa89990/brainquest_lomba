@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
+import { BookOpen, FolderOpen, Lock, Sparkles, Waves } from 'lucide-react';
 import { useAuth } from '../lib/useAuth';
 import { apiService } from '../lib/apiService';
 
@@ -137,7 +138,7 @@ function DetailMateriPage() {
                 backgroundColor: materi.status === 'Khusus Member' ? 'rgba(99,102,241,0.1)' : 'rgba(244,166,35,0.1)',
                 color: materi.status === 'Khusus Member' ? '#6366f1' : 'var(--primary-purple)',
               }}>
-                {materi.status === 'Khusus Member' ? '🔒 ' : ''}{materi.status}
+                {materi.status === 'Khusus Member' ? <><Lock size={14} style={{ marginRight: '4px' }} /></> : null}{materi.status}
               </span>
             )}
           </div>
@@ -150,7 +151,7 @@ function DetailMateriPage() {
             {kontenAktif.img ? (
               <img src={kontenAktif.img} alt={kontenAktif.title} style={s.gambar} />
             ) : (
-              <div style={s.gambarPlaceholder}><span style={{ fontSize: '56px' }}>📚</span></div>
+              <div style={s.gambarPlaceholder}><span style={{ display: 'inline-flex' }}><BookOpen size={56} color="#ffffff" /></span></div>
             )}
             {kontenAktif.id !== materi.id && (
               <div style={s.labelMateriAktif}>
@@ -163,7 +164,7 @@ function DetailMateriPage() {
           <div style={s.gridKonten}>
             {!isAuthenticated && (
               <div style={s.bannerGuest}>
-                <span style={{ fontSize: '18px' }}>⚡</span>
+                <span style={{ display: 'inline-flex' }}><Waves size={18} color="#f59e0b" /></span>
                 <p style={s.teksBanner}>
                   Kamu dalam <strong>Mode Tamu</strong>. Hanya sebagian konten yang dapat dilihat.
                 </p>
@@ -210,7 +211,7 @@ function DetailMateriPage() {
             {!terkunciAktif && (
               <div style={s.kotakKuis}>
                 <div>
-                  <span style={s.badgeSiap}>✅ Siap Diuji</span>
+                  <span style={s.badgeSiap}><Sparkles size={14} style={{ marginRight: '6px' }} /> Siap Diuji</span>
                   <p style={s.teksKuis}>Sudah paham materinya? Coba uji dengan kuis interaktif!</p>
                 </div>
                 <button
@@ -269,7 +270,7 @@ function DetailMateriPage() {
                               fontWeight: aktif ? 700 : isParent ? 600 : 500,
                               fontSize: isParent ? '14px' : '13px'
                             }}>
-                              {isParent && '📁 '}{m.title}
+                              {isParent ? <><FolderOpen size={14} style={{ marginRight: '6px' }} /></> : null}{m.title}
                             </p>
                             <p style={s.itemKat}>
                               {isParent ? 'Materi Utama' : 'Sub-materi'} • {m.category}
@@ -295,7 +296,7 @@ function DetailMateriPage() {
 
             {!isAuthenticated && (
               <div style={s.miniCta}>
-                <p style={s.teksCtaMini}>🚀 Bergabung dengan <strong>15.000+</strong> siswa aktif</p>
+                <p style={s.teksCtaMini}><Sparkles size={16} style={{ marginRight: '6px' }} /> Bergabung dengan <strong>15.000+</strong> siswa aktif</p>
                 <Link to="/daftar" style={s.btnCtaMini}>Daftar Gratis</Link>
               </div>
             )}

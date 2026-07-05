@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { BookOpen, Lock, Sparkles } from 'lucide-react';
 import { useAuth } from '../lib/useAuth';
 import { apiService } from '../lib/apiService';
 
@@ -97,7 +98,7 @@ function MateriPage() {
           </div>
         ) : bankMateri.length === 0 ? (
           <div style={s.kosong}>
-            <span style={{ fontSize: '48px' }}>📭</span>
+            <span style={{ display: 'inline-flex' }}><Sparkles size={48} color="#a855f7" /></span>
             <p style={s.teksKosong}>Belum ada materi untuk kategori ini.</p>
           </div>
         ) : (
@@ -119,7 +120,7 @@ function MateriPage() {
                         <img src={m.img} alt={m.title} style={{ ...s.cardImg, filter: 'blur(6px) brightness(0.4)' }} />
                       ) : (
                         <div style={{ ...s.cardImgPlaceholder, backgroundColor: '#1e1b4b' }}>
-                          <span style={{ fontSize: '40px', filter: 'blur(2px)' }}>📚</span>
+                          <span style={{ display: 'inline-flex', filter: 'blur(2px)' }}><BookOpen size={40} color="#ffffff" /></span>
                         </div>
                       )}
                       <div style={s.overlayKunci}>
@@ -133,7 +134,7 @@ function MateriPage() {
                       </div>
                       {m.status && (
                         <span style={{ ...s.badge, backgroundColor: 'rgba(99,102,241,0.15)', color: '#818cf8', opacity: 0.8 }}>
-                          🔒 {m.status}
+                          <Lock size={14} style={{ marginRight: '4px' }} /> {m.status}
                         </span>
                       )}
                     </div>
@@ -178,7 +179,7 @@ function MateriPage() {
                       <img src={m.img} alt={m.title} style={s.cardImg} />
                     ) : (
                       <div style={s.cardImgPlaceholder}>
-                        <span style={{ fontSize: '40px' }}>📚</span>
+                        <span style={{ display: 'inline-flex' }}><BookOpen size={40} color="#ffffff" /></span>
                       </div>
                     )}
                     {m.status && (
@@ -187,7 +188,7 @@ function MateriPage() {
                         backgroundColor: m.status === 'Khusus Member' ? 'rgba(99,102,241,0.12)' : 'rgba(244,166,35,0.1)',
                         color: m.status === 'Khusus Member' ? '#6366f1' : 'var(--primary-purple)',
                       }}>
-                        {m.status === 'Khusus Member' ? '🔒 ' : ''}{m.status}
+                        {m.status === 'Khusus Member' ? <><Lock size={14} style={{ marginRight: '4px' }} /></> : null}{m.status}
                       </span>
                     )}
                     <span style={s.badgeKategori}>{m.category}</span>

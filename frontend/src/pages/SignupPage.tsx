@@ -46,7 +46,7 @@ function SignupPage() {
             </button>
 
             <div style={styles.headerForm}>
-              <h2 style={styles.judulKanan}>Mulai Petualanganmu 🚀</h2>
+              <h2 style={styles.judulKanan}>Mulai Petualanganmu</h2>
               <p style={styles.subKanan}>Buat akun gratis dan bergabunglah bersama ribuan siswa lainnya</p>
             </div>
 

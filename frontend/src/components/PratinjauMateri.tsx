@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { ChevronDown, ChevronRight, Lock } from 'lucide-react';
 import { apiService } from '../lib/apiService';
 
 interface Materi {
@@ -146,7 +147,7 @@ function PratinjauMateri() {
                             color: 'var(--primary-purple)',
                             fontWeight: 600
                           }}>
-                            {isExpanded ? '▼' : '▶'} {childMaterials.length} submateri
+                            {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />} <span style={{ marginLeft: '4px' }}>{childMaterials.length} submateri</span>
                           </span>
                         )}
                       </h3>
@@ -257,7 +258,7 @@ function PratinjauMateri() {
 
             <div style={gaya.modalFooter}>
               <div style={gaya.pesanLimit}>
-                <span style={{ fontSize: '20px' }}>🔒</span>
+                <span style={{ display: 'inline-flex' }}><Lock size={20} color="#6366f1" /></span>
                 <p style={gaya.teksPeringatan}>Kamu sedang dalam mode tamu. Progres kuis dan XP tidak akan disimpan.</p>
               </div>
               <div style={gaya.opsiAuth}>

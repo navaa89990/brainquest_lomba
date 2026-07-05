@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { Bell, Heart, X } from 'lucide-react';
 import { useAuth } from '../lib/useAuth';
 import logo from '../assets/warnalogo.png';
 
@@ -129,7 +130,7 @@ function FooterUtama() {
 
           <div style={gaya.blokBawah} className="baris-papan-blur">
             <p style={gaya.hakCipta}>© 2026 BrainQuest. All rights reserved.</p>
-            <p style={gaya.teksKreditBawah}>Dibuat dengan ❤️ untuk pelajar Indonesia</p>
+            <p style={gaya.teksKreditBawah}>Dibuat dengan <Heart size={14} style={{ display: 'inline', margin: '0 4px', color: '#f43f5e' }} /> untuk pelajar Indonesia</p>
           </div>
 
         </div>
@@ -139,8 +140,8 @@ function FooterUtama() {
       {showPopup && (
         <div style={gaya.overlayPopup} onClick={tutupPopup}>
           <div style={gaya.kotakPopup} onClick={(e) => e.stopPropagation()}>
-            <button style={gaya.tombolTutupPopup} onClick={tutupPopup}>✕</button>
-            <div style={gaya.ikonPopup}>🔔</div>
+            <button style={gaya.tombolTutupPopup} onClick={tutupPopup}><X size={18} /></button>
+            <div style={gaya.ikonPopup}><Bell size={24} /></div>
             <h3 style={gaya.judulPopup}>Halo, Kamu Sudah Login!</h3>
             <p style={gaya.deskripsiPopup}>
               Kamu sudah memiliki akun BrainQuest. Silakan <strong>logout</strong> terlebih dahulu jika ingin mendaftar dengan akun baru.

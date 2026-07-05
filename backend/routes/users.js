@@ -100,6 +100,91 @@ router.post('/change-password', authenticate, async (req, res) => {
   }
 });
 
+// Get user settings
+router.get('/settings', authenticate, async (req, res) => {
+  try {
+    const settings = await req.db.get(
+      'SELECT theme, notifications, language FROM user_settings WHERE user_id = ?',
+      [req.user.id]
+    );
+
+    res.json({
+      settings: settings || {
+        theme: 'light',
+        notifications: true,
+        language: 'id',
+      },
+    });
+  } catch (err) {
+    console.error('Get settings error:', err);
+    res.status(500).json({ error: 'Failed to get settings' });
+  }
+});
+
+// Update user settings
+router.put('/settings', authenticate, async (req, res) => {
+  try {
+    const { theme = 'light', notifications = true, language = 'id' } = req.body;
+    const normalizedNotifications = typeof notifications === 'boolean' ? (notifications ? 1 : 0) : Number(notifications);
+
+    await req.db.run(
+      `INSERT INTO user_settings (user_id, theme, notifications, language, updated_at)
+       VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+       ON CONFLICT(user_id) DO UPDATE SET
+         theme = excluded.theme,
+         notifications = excluded.notifications,
+         language = excluded.language,
+         updated_at = CURRENT_TIMESTAMP`,
+      [req.user.id, theme, normalizedNotifications, language]
+    );
+
+    const settings = await req.db.get(
+      'SELECT theme, notifications, language FROM user_settings WHERE user_id = ?',
+      [req.user.id]
+    );
+
+    res.json({
+      message: 'Settings updated successfully',
+      settings: {
+        theme: settings.theme,
+        notifications: Boolean(settings.notifications),
+        language: settings.language,
+      },
+    });
+  } catch (err) {
+    console.error('Update settings error:', err);
+    res.status(500).json({ error: 'Failed to update settings' });
+  }
+});
+
+// Update user role (admin only)
+router.put('/:id/role', authenticate, ensureAdmin, async (req, res) => {
+  try {
+    const { role } = req.body;
+    if (!['admin', 'user'].includes(role)) {
+      return res.status(400).json({ error: 'Role must be admin or user' });
+    }
+
+    const targetUser = await req.db.get('SELECT id, role FROM users WHERE id = ?', [req.params.id]);
+    if (!targetUser) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    await req.db.run('UPDATE users SET role = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [role, req.params.id]);
+
+    res.json({
+      message: 'User role updated successfully',
+      user: {
+        id: targetUser.id,
+        role,
+      },
+    });
+  } catch (err) {
+    console.error('Update role error:', err);
+    res.status(500).json({ error: 'Failed to update user role' });
+  }
+});
+
 // Get leaderboard
 router.get('/leaderboard', async (req, res) => {
   try {

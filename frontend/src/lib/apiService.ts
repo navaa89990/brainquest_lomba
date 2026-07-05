@@ -76,6 +76,37 @@ export const apiService = {
     return response.json();
   },
 
+  async getUserSettings(token: string) {
+    const response = await fetch(`${API_BASE_URL}/api/users/settings`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return response.json();
+  },
+
+  async updateUserSettings(token: string, settings: { theme?: string; notifications?: boolean; language?: string }) {
+    const response = await fetch(`${API_BASE_URL}/api/users/settings`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(settings),
+    });
+    return response.json();
+  },
+
+  async updateUserRole(token: string, userId: number, role: 'user' | 'admin') {
+    const response = await fetch(`${API_BASE_URL}/api/users/${userId}/role`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ role }),
+    });
+    return response.json();
+  },
+
   // Materials endpoints
   async getMaterials(page = 1, limit = 10, category?: string) {
     let url = `${API_BASE_URL}/api/materials?page=${page}&limit=${limit}`;
@@ -129,6 +160,25 @@ export const apiService = {
   async getQuizStats(token: string) {
     const response = await fetch(`${API_BASE_URL}/api/quiz/stats`, {
       headers: { Authorization: `Bearer ${token}` },
+    });
+    return response.json();
+  },
+
+  async getArenaProgress(token: string) {
+    const response = await fetch(`${API_BASE_URL}/api/quiz/arena`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return response.json();
+  },
+
+  async updateArenaProgress(token: string, lessonId: string, levelId: number, completed: boolean) {
+    const response = await fetch(`${API_BASE_URL}/api/quiz/arena/progress`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ lessonId, levelId, completed }),
     });
     return response.json();
   },

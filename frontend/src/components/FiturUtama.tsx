@@ -1,21 +1,22 @@
 import React, { useState } from 'react';
+import { BookOpen, Swords, Trophy } from 'lucide-react';
 
 function FiturUtama() {
   const [kartuAktif, setKartuAktif] = useState<number | null>(null);
 
   const listFitur = [
     {
-      ikon: '📖',
+      icon: BookOpen,
       judul: 'Peta Materi',
       deskripsi: 'Jelajahi petualangan belajar dengan visual peta pangkalan yang seru dan mudah dipahami.'
     },
     {
-      ikon: '⚔️',
+      icon: Swords,
       judul: 'Arena Kuis',
       deskripsi: 'Tantang dirimu dalam kuis interaktif berwaktu untuk menguji pemahaman materi secara instan.'
     },
     {
-      ikon: '🏆',
+      icon: Trophy,
       judul: 'Leaderboard',
       deskripsi: 'Raih poin tertinggi dari setiap misi dan bersainglah untuk menjadi juara di sekolahmu.'
     }
@@ -34,6 +35,7 @@ function FiturUtama() {
         <div style={gaya.gridKartu}>
           {listFitur.map((fitur, indeks) => {
             const sedangHover = kartuAktif === indeks;
+            const Icon = fitur.icon;
 
             return (
               <div 
@@ -49,7 +51,7 @@ function FiturUtama() {
                   ...gaya.wadahIkon,
                   ...(sedangHover ? gaya.wadahIkonHover : {})
                 }}>
-                  <span style={gaya.teksIkon}>{fitur.ikon}</span>
+                  <Icon size={28} strokeWidth={2.2} color={sedangHover ? '#ffffff' : 'var(--primary-purple)'} />
                 </div>
                 <h3 style={gaya.judulKartu}>{fitur.judul}</h3>
                 <p style={gaya.deskripsiKartu}>{fitur.deskripsi}</p>

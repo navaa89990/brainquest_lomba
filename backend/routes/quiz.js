@@ -117,4 +117,67 @@ router.get('/stats', authenticate, async (req, res) => {
   }
 });
 
+// Get arena progress for current user
+router.get('/arena', authenticate, async (req, res) => {
+  try {
+    const progress = await req.db.all(
+      'SELECT lesson_id, level_id, completed, completed_at FROM arena_progress WHERE user_id = ? ORDER BY lesson_id, level_id',
+      [req.user.id]
+    );
+
+    res.json({
+      progress: progress.map((item) => ({
+        lessonId: item.lesson_id,
+        levelId: item.level_id,
+        completed: Boolean(item.completed),
+        completedAt: item.completed_at,
+      })),
+    });
+  } catch (err) {
+    console.error('Get arena progress error:', err);
+    res.status(500).json({ error: 'Failed to get arena progress' });
+  }
+});
+
+// Update arena progress for current user
+router.post('/arena/progress', authenticate, async (req, res) => {
+  try {
+    const { lessonId, levelId, completed = false } = req.body;
+
+    if (!lessonId || levelId === undefined) {
+      return res.status(400).json({ error: 'Lesson ID and level ID are required' });
+    }
+
+    const completedAt = completed ? new Date().toISOString() : null;
+
+    await req.db.run(
+      `INSERT INTO arena_progress (user_id, lesson_id, level_id, completed, completed_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+       ON CONFLICT(user_id, lesson_id, level_id) DO UPDATE SET
+         completed = excluded.completed,
+         completed_at = excluded.completed_at,
+         updated_at = CURRENT_TIMESTAMP`,
+      [req.user.id, lessonId, levelId, completed ? 1 : 0, completedAt]
+    );
+
+    const progress = await req.db.all(
+      'SELECT lesson_id, level_id, completed, completed_at FROM arena_progress WHERE user_id = ? ORDER BY lesson_id, level_id',
+      [req.user.id]
+    );
+
+    res.json({
+      message: 'Arena progress updated successfully',
+      progress: progress.map((item) => ({
+        lessonId: item.lesson_id,
+        levelId: item.level_id,
+        completed: Boolean(item.completed),
+        completedAt: item.completed_at,
+      })),
+    });
+  } catch (err) {
+    console.error('Update arena progress error:', err);
+    res.status(500).json({ error: 'Failed to update arena progress' });
+  }
+});
+
 export const quizRoutes = router;

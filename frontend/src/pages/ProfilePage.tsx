@@ -2,19 +2,17 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '../lib/useAuth';
 import { apiService } from '../lib/apiService';
 import {
-  User,
-  Mail,
-  Award,
-  Star,
-  Calendar,
-  Crown,
-  Trophy,
-  Flame,
-  BookOpen,
-  TrendingUp,
-  Settings,
-  LogOut,
-} from 'lucide-react';
+  MdPerson,
+  MdMail,
+  MdWorkspacePremium,
+  MdStar,
+  MdCalendarToday,
+  MdEmojiEvents,
+  MdLocalFireDepartment,
+  MdMenuBook,
+  MdTrendingUp,
+  MdLogout,
+} from 'react-icons/md';
 
 interface UserProfile {
   id: number;
@@ -29,7 +27,7 @@ interface UserProfile {
 }
 
 function ProfilePage() {
-  const { user, isAuthenticated, token, logout } = useAuth();
+  const { isAuthenticated, token, logout } = useAuth();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -142,10 +140,10 @@ function ProfilePage() {
   }
 
   const statCards = [
-    { label: 'Total Poin', value: profile.points.toLocaleString(), icon: Star, color: '#f59e0b', bgColor: '#fef3c7' },
-    { label: 'Level', value: profile.level, icon: Award, color: '#6366f1', bgColor: '#eef2ff' },
-    { label: 'Role', value: profile.role === 'admin' ? 'Admin' : 'User', icon: profile.role === 'admin' ? Crown : User, color: profile.role === 'admin' ? '#f59e0b' : '#6366f1', bgColor: profile.role === 'admin' ? '#fef3c7' : '#eef2ff' },
-    { label: 'Bergabung', value: formatDate(profile.createdAt), icon: Calendar, color: '#94a3b8', bgColor: '#f1f5f9' },
+    { label: 'Total Poin', value: profile.points.toLocaleString(), icon: MdStar, color: '#f59e0b', bgColor: '#fef3c7' },
+    { label: 'Level', value: profile.level, icon: MdWorkspacePremium, color: '#6366f1', bgColor: '#eef2ff' },
+    { label: 'Role', value: profile.role === 'admin' ? 'Admin' : 'User', icon: profile.role === 'admin' ? MdEmojiEvents : MdPerson, color: profile.role === 'admin' ? '#f59e0b' : '#6366f1', bgColor: profile.role === 'admin' ? '#fef3c7' : '#eef2ff' },
+    { label: 'Bergabung', value: formatDate(profile.createdAt), icon: MdCalendarToday, color: '#94a3b8', bgColor: '#f1f5f9' },
   ];
 
   return (
@@ -157,7 +155,7 @@ function ProfilePage() {
             <p style={styles.subtitle}>Kelola informasi akun dan pantau progres belajarmu</p>
           </div>
           <button onClick={handleLogout} style={styles.logoutButton}>
-            <LogOut size={18} />
+            <MdLogout size={18} />
             <span>Logout</span>
           </button>
         </div>
@@ -176,24 +174,24 @@ function ProfilePage() {
               <p style={styles.profileRole}>
                 {profile.role === 'admin' ? (
                   <>
-                    <Crown size={16} color="#f59e0b" />
+                    <MdEmojiEvents size={16} color="#f59e0b" />
                     <span>Administrator</span>
                   </>
                 ) : (
                   <>
-                    <User size={16} color="#6366f1" />
+                    <MdPerson size={16} color="#6366f1" />
                     <span>Member</span>
                   </>
                 )}
               </p>
               <div style={styles.profileBadge}>
-                <BookOpen size={14} />
+                <MdMenuBook size={14} />
                 <span>{profile.role === 'admin' ? 'Akses Penuh' : 'Akses Member'}</span>
               </div>
             </div>
             <div style={styles.profileLevel}>
               <div style={styles.levelCircle}>
-                <Award size={24} color="#f59e0b" />
+                <MdWorkspacePremium size={24} color="#f59e0b" />
                 <span style={styles.levelNumber}>{profile.level}</span>
               </div>
               <span style={styles.levelLabel}>Level</span>
@@ -220,7 +218,7 @@ function ProfilePage() {
           <div style={styles.profileDetails}>
             <div style={styles.detailItem}>
               <div style={styles.detailIcon}>
-                <User size={18} color="#6366f1" />
+                <MdPerson size={18} color="#6366f1" />
               </div>
               <div>
                 <span style={styles.detailLabel}>Username</span>
@@ -229,7 +227,7 @@ function ProfilePage() {
             </div>
             <div style={styles.detailItem}>
               <div style={styles.detailIcon}>
-                <Mail size={18} color="#6366f1" />
+                <MdMail size={18} color="#6366f1" />
               </div>
               <div>
                 <span style={styles.detailLabel}>Email</span>
@@ -238,7 +236,7 @@ function ProfilePage() {
             </div>
             <div style={styles.detailItem}>
               <div style={styles.detailIcon}>
-                <Trophy size={18} color="#f59e0b" />
+                <MdStar size={18} color="#f59e0b" />
               </div>
               <div>
                 <span style={styles.detailLabel}>Total Poin</span>
@@ -247,7 +245,7 @@ function ProfilePage() {
             </div>
             <div style={styles.detailItem}>
               <div style={styles.detailIcon}>
-                <Flame size={18} color="#ef4444" />
+                <MdLocalFireDepartment size={18} color="#ef4444" />
               </div>
               <div>
                 <span style={styles.detailLabel}>Level</span>
@@ -256,7 +254,7 @@ function ProfilePage() {
             </div>
             <div style={styles.detailItem}>
               <div style={styles.detailIcon}>
-                <Calendar size={18} color="#94a3b8" />
+                <MdCalendarToday size={18} color="#94a3b8" />
               </div>
               <div>
                 <span style={styles.detailLabel}>Bergabung</span>
@@ -265,12 +263,12 @@ function ProfilePage() {
             </div>
             <div style={styles.detailItem}>
               <div style={styles.detailIcon}>
-                <TrendingUp size={18} color="#10b981" />
+                <MdTrendingUp size={18} color="#10b981" />
               </div>
               <div>
                 <span style={styles.detailLabel}>Status</span>
                 <span style={styles.detailValue}>
-                  {profile.role === 'admin' ? '👑 Administrator' : '✅ Member Aktif'}
+                  {profile.role === 'admin' ? 'Administrator' : 'Member Aktif'}
                 </span>
               </div>
             </div>

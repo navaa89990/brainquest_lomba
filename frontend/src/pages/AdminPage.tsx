@@ -3,18 +3,17 @@ import { useAuth } from '../lib/useAuth';
 import { apiService } from '../lib/apiService';
 import { useNavigate } from 'react-router-dom';
 import {
-  Users,
-  Shield,
-  Star,
-  TrendingUp,
-  User,
-  Mail,
-  Calendar,
-  Award,
-  Crown,
-  LogOut,
-} from 'lucide-react';
-
+  MdPeople,
+  MdShield,
+  MdStar,
+  MdTrendingUp,
+  MdPerson,
+  MdMail,
+  MdCalendarToday,
+  MdWorkspacePremium,
+  MdEmojiEvents,
+  MdLogout,
+} from 'react-icons/md';import { AlertTriangle } from 'lucide-react';
 interface AdminUser {
   id: number;
   username: string;
@@ -77,7 +76,7 @@ function AdminPage() {
 
         const userList = response.users || [];
         
-        // ✅ URUTKAN berdasarkan ID dari terkecil ke terbesar
+        // Urutkan berdasarkan ID dari terkecil ke terbesar
         const sortedUsers = userList.sort((a: AdminUser, b: AdminUser) => a.id - b.id);
         setUsers(sortedUsers);
 
@@ -128,6 +127,33 @@ function AdminPage() {
     }
   };
 
+  const handleRoleChange = async (userId: number, currentRole: string) => {
+    if (!token) return;
+
+    const nextRole = currentRole === 'admin' ? 'user' : 'admin';
+
+    try {
+      const response = await apiService.updateUserRole(token, userId, nextRole as 'user' | 'admin');
+      if (response.error) throw new Error(response.error);
+
+      setUsers((prev) => {
+        const updated = prev.map((item) => item.id === userId ? { ...item, role: nextRole } : item);
+        setStats({
+          totalUsers: updated.length,
+          totalAdmins: updated.filter((item) => item.role === 'admin').length,
+          totalPoints: updated.reduce((sum, item) => sum + (item.points || 0), 0),
+          averageLevel: updated.length > 0
+            ? Math.round(updated.reduce((sum, item) => sum + (item.level || 1), 0) / updated.length)
+            : 0,
+        });
+        return updated;
+      });
+    } catch (err) {
+      console.error('Error updating role:', err);
+      setError('Gagal mengubah role pengguna.');
+    }
+  };
+
   const getInitials = (name: string) => {
     if (!name) return 'U';
     return name
@@ -174,7 +200,7 @@ function AdminPage() {
             <p style={styles.subtitle}>Terjadi kesalahan</p>
           </div>
           <div style={styles.errorBox}>
-            <span style={styles.errorIcon}>⚠️</span>
+            <span style={styles.errorIcon}><AlertTriangle size={20} color="#dc2626" /></span>
             <div>
               <p style={styles.errorText}>{error}</p>
               <button 
@@ -191,10 +217,10 @@ function AdminPage() {
   }
 
   const statCards = [
-    { label: 'Total Pengguna', value: stats.totalUsers, icon: Users, color: '#6366f1', bgColor: '#eef2ff' },
-    { label: 'Admin Aktif', value: stats.totalAdmins, icon: Shield, color: '#f59e0b', bgColor: '#fef3c7' },
-    { label: 'Total Poin', value: stats.totalPoints.toLocaleString(), icon: Star, color: '#10b981', bgColor: '#d1fae5' },
-    { label: 'Rata-rata Level', value: stats.averageLevel, icon: TrendingUp, color: '#ef4444', bgColor: '#fee2e2' },
+    { label: 'Total Pengguna', value: stats.totalUsers, icon: MdPeople, color: '#6366f1', bgColor: '#eef2ff' },
+    { label: 'Admin Aktif', value: stats.totalAdmins, icon: MdShield, color: '#f59e0b', bgColor: '#fef3c7' },
+    { label: 'Total Poin', value: stats.totalPoints.toLocaleString(), icon: MdStar, color: '#10b981', bgColor: '#d1fae5' },
+    { label: 'Rata-rata Level', value: stats.averageLevel, icon: MdTrendingUp, color: '#ef4444', bgColor: '#fee2e2' },
   ];
 
   return (
@@ -209,14 +235,14 @@ function AdminPage() {
           </div>
           <div style={styles.headerRight}>
             <div style={styles.headerBadge}>
-              <Crown size={16} style={{ marginRight: '6px' }} />
+              <MdEmojiEvents size={16} style={{ marginRight: '6px' }} />
               <span style={styles.badgeText}>Admin</span>
             </div>
             <button 
               onClick={handleLogout}
               style={styles.logoutButton}
             >
-              <LogOut size={18} />
+              <MdLogout size={18} />
               <span>Logout</span>
             </button>
           </div>
@@ -245,7 +271,7 @@ function AdminPage() {
         <section style={styles.tableSection} aria-label="Daftar Pengguna">
           <div style={styles.tableHeader}>
             <div style={styles.tableHeaderLeft}>
-              <Users size={20} color="#6366f1" strokeWidth={2} />
+              <MdPeople size={20} color="#6366f1" />
               <h2 style={styles.tableTitle}>Daftar Pengguna</h2>
             </div>
             <span style={styles.tableCount}>{users.length} pengguna</span>
@@ -254,7 +280,7 @@ function AdminPage() {
           <div style={styles.tableContainer}>
             {users.length === 0 ? (
               <div style={styles.emptyState}>
-                <Users size={48} color="#cbd5e1" strokeWidth={1.5} />
+                <MdPeople size={48} color="#cbd5e1" />
                 <p style={styles.emptyText}>Belum ada pengguna terdaftar</p>
               </div>
             ) : (
@@ -293,51 +319,59 @@ function AdminPage() {
                       </td>
                       <td style={styles.td}>
                         <div style={styles.emailCell}>
-                          <Mail size={14} color="#94a3b8" strokeWidth={2} />
+                          <MdMail size={14} color="#94a3b8" />
                           <span>{user.email}</span>
                         </div>
                       </td>
                       <td style={styles.td}>{user.fullName || '-'}</td>
                       <td style={styles.td}>
-                        <span
-                          style={{
-                            ...styles.roleBadge,
-                            backgroundColor:
-                              user.role === 'admin'
-                                ? 'rgba(251, 191, 36, 0.15)'
-                                : 'rgba(99, 102, 241, 0.08)',
-                            color:
-                              user.role === 'admin' ? '#b45309' : '#6366f1',
-                          }}
-                        >
-                          {user.role === 'admin' ? (
-                            <>
-                              <Crown size={12} style={{ marginRight: '4px' }} />
-                              Admin
-                            </>
-                          ) : (
-                            <>
-                              <User size={12} style={{ marginRight: '4px' }} />
-                              User
-                            </>
-                          )}
-                        </span>
+                        <div style={styles.roleCell}>
+                          <span
+                            style={{
+                              ...styles.roleBadge,
+                              backgroundColor:
+                                user.role === 'admin'
+                                  ? 'rgba(251, 191, 36, 0.15)'
+                                  : 'rgba(99, 102, 241, 0.08)',
+                              color:
+                                user.role === 'admin' ? '#b45309' : '#6366f1',
+                            }}
+                          >
+                            {user.role === 'admin' ? (
+                              <>
+                                <MdEmojiEvents size={12} style={{ marginRight: '4px' }} />
+                                Admin
+                              </>
+                            ) : (
+                              <>
+                                <MdPerson size={12} style={{ marginRight: '4px' }} />
+                                User
+                              </>
+                            )}
+                          </span>
+                          <button
+                            onClick={() => handleRoleChange(user.id, user.role)}
+                            style={styles.roleToggleButton}
+                          >
+                            {user.role === 'admin' ? 'Turunkan' : 'Naikkan'}
+                          </button>
+                        </div>
                       </td>
                       <td style={styles.td}>
                         <span style={styles.pointsBadge}>
-                          <Star size={14} color="#f59e0b" strokeWidth={2} style={{ marginRight: '4px' }} />
+                          <MdStar size={14} color="#f59e0b" style={{ marginRight: '4px' }} />
                           {user.points}
                         </span>
                       </td>
                       <td style={styles.td}>
                         <span style={styles.levelBadge}>
-                          <Award size={14} color="#6366f1" strokeWidth={2} style={{ marginRight: '4px' }} />
+                          <MdWorkspacePremium size={14} color="#6366f1" style={{ marginRight: '4px' }} />
                           Lv.{user.level}
                         </span>
                       </td>
                       <td style={styles.td}>
                         <div style={styles.dateCell}>
-                          <Calendar size={14} color="#94a3b8" strokeWidth={2} />
+                          <MdCalendarToday size={14} color="#94a3b8" />
                           <span style={styles.dateText}>{formatDate(user.createdAt)}</span>
                         </div>
                       </td>
@@ -448,9 +482,9 @@ const styles = {
   } as React.CSSProperties,
 
   statIconWrapper: {
-    width: '44px',
-    height: '44px',
-    borderRadius: '12px',
+    width: '36px',
+    height: '36px',
+    borderRadius: '50%',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -597,6 +631,24 @@ const styles = {
     borderRadius: '100px',
     fontSize: '12px',
     fontWeight: 700,
+  } as React.CSSProperties,
+
+  roleCell: {
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: '6px',
+    alignItems: 'flex-start',
+  } as React.CSSProperties,
+
+  roleToggleButton: {
+    border: '1px solid #cbd5e1',
+    borderRadius: '999px',
+    backgroundColor: '#fff',
+    padding: '4px 8px',
+    fontSize: '11px',
+    fontWeight: 700,
+    color: '#475569',
+    cursor: 'pointer',
   } as React.CSSProperties,
 
   pointsBadge: {

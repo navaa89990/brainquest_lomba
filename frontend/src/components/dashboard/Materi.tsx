@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { BookOpen, CheckCircle2 } from 'lucide-react';
 import { useAuth } from '../../lib/useAuth';
 import { apiService } from '../../lib/apiService';
 
@@ -116,7 +117,7 @@ export default function Materi() {
           <p style={styles.headerSub}>Belum ada materi yang tersedia untukmu.</p>
         </header>
         <div style={styles.emptyContainer}>
-          <span style={styles.emptyIcon}>📚</span>
+          <span style={styles.emptyIcon}><BookOpen size={48} color="#6366f1" /></span>
           <h3 style={styles.emptyTitle}>Belum Ada Materi</h3>
           <p style={styles.emptyDesc}>Kamu belum memulai materi apapun. Pilih materi dari daftar yang tersedia untuk memulai petualangan belajarmu!</p>
           <button 
@@ -157,7 +158,7 @@ export default function Materi() {
                     {getInitials(materi.title)}
                   </div>
                   {materi.progress === 100 && (
-                    <span style={styles.completedBadge}>✓ Selesai</span>
+                    <span style={styles.completedBadge}><CheckCircle2 size={14} style={{ marginRight: '4px' }} /> Selesai</span>
                   )}
                 </div>
                 

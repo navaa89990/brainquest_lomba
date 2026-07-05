@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
+import { BookOpen, Clock3, Lock, Sparkles, Trophy, Waves } from 'lucide-react';
 import { useAuth } from '../lib/useAuth';
 import { apiService } from '../lib/apiService';
 
@@ -187,7 +188,7 @@ function KuisPage() {
 
             {!loadingSoal && totalSoal === 0 && (
               <div style={{ textAlign: 'center', padding: '40px 0' }}>
-                <span style={{ fontSize: '48px' }}>📭</span>
+                <span style={{ display: 'inline-flex' }}><Sparkles size={48} color="#a855f7" /></span>
                 <p style={{ marginTop: '16px', color: '#64748b', fontWeight: 500 }}>Belum ada soal untuk materi ini.</p>
                 <button onClick={kembaliKeList} style={{ ...g.btnKembali, marginTop: '20px' }}>← Kembali ke Daftar</button>
               </div>
@@ -195,14 +196,14 @@ function KuisPage() {
 
             {!loadingSoal && selesai && (
               <div style={{ textAlign: 'center', padding: '20px 0' }}>
-                <span style={{ fontSize: '48px' }}>{totalBenar === totalSoal ? '🏆' : '📊'}</span>
+                <span style={{ display: 'inline-flex' }}>{totalBenar === totalSoal ? <Trophy size={48} color="#f59e0b" /> : <Sparkles size={48} color="#6366f1" />}</span>
                 <h2 style={{ ...g.judulKuis, textAlign: 'center', marginTop: '16px' }}>Kuis Selesai!</h2>
                 <p style={{ fontSize: '16px', color: '#475569', marginBottom: '8px' }}>
                   Kamu menjawab benar <strong style={{ color: 'var(--primary-purple)' }}>{totalBenar} dari {totalSoal}</strong> soal.
                 </p>
                 <div style={{ ...g.kotakFeedback, backgroundColor: '#fffcf5', borderColor: 'rgba(244,166,35,0.2)', marginTop: '24px' }}>
                   <div style={g.wrapperCta}>
-                    <p style={g.teksGembok}>🔒 Daftar untuk simpan skor & akses soal tanpa batas!</p>
+                    <p style={g.teksGembok}><Lock size={16} style={{ marginRight: '6px' }} /> Daftar untuk simpan skor & akses soal tanpa batas!</p>
                     <div style={g.grupTombol}>
                       <button onClick={kembaliKeList} style={{ ...g.btnDaftarFeedback, backgroundColor: '#f0f2f5', color: 'var(--text-dark)', boxShadow: 'none', border: 'none', cursor: 'pointer' }}>
                         Materi Lain
@@ -217,7 +218,7 @@ function KuisPage() {
             {!loadingSoal && !selesai && soalAktif && (
               <>
                 <div style={g.headerKuis}>
-                  <span style={g.badgeLive}>⚡ MODE TEASER GRATIS</span>
+                  <span style={g.badgeLive}><Waves size={14} style={{ marginRight: '6px' }} /> MODE TEASER GRATIS</span>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                     <h2 style={{ ...g.judulKuis, marginBottom: 0 }}>{materiAktif.title}</h2>
                     <span style={{ fontSize: '13px', fontWeight: 600, color: '#94a3b8' }}>{indeksSoal + 1} / {totalSoal}</span>
@@ -267,13 +268,13 @@ function KuisPage() {
                 {sudahJawab && (
                   <div style={{ ...g.kotakFeedback, backgroundColor: skorDapat === 100 ? '#f0fdf4' : '#fef2f2', borderColor: skorDapat === 100 ? '#bbf7d0' : '#fecaca' }}>
                     <div style={g.feedbackTeks}>
-                      <span style={{ fontSize: '24px' }}>{skorDapat === 100 ? '🎉' : '😢'}</span>
+                      <span style={{ display: 'inline-flex' }}>{skorDapat === 100 ? <Trophy size={24} color="#16a34a" /> : <Clock3 size={24} color="#dc2626" />}</span>
                       <h4 style={{ margin: 0, color: skorDapat === 100 ? '#166534' : '#991b1b', fontWeight: 700 }}>
                         {skorDapat === 100 ? 'Jawaban Kamu Benar!' : 'Yah, Jawaban Kurang Tepat!'}
                       </h4>
                     </div>
                     <div style={g.wrapperCta}>
-                      <p style={g.teksGembok}>🔒 Simpan skor & klaim hadiahmu!</p>
+                      <p style={g.teksGembok}><Lock size={16} style={{ marginRight: '6px' }} /> Simpan skor & klaim hadiahmu!</p>
                       <div style={g.grupTombol}>
                         <button onClick={soalBerikutnya} style={{ ...g.btnDaftarFeedback, border: 'none', cursor: 'pointer' }}>
                           {indeksSoal + 1 < totalSoal ? 'Soal Berikutnya' : 'Lihat Hasil'}
@@ -344,7 +345,7 @@ function KuisPage() {
                   <div style={g.cardImgWrap}>
                     {m.img
                       ? <img src={m.img} alt={m.title} style={{ ...g.cardImg, ...(terkunci ? { filter: 'blur(4px) brightness(0.5)' } : {}) }} />
-                      : <div style={g.cardImgPlaceholder}><span style={{ fontSize: '40px' }}>📚</span></div>
+                      : <div style={g.cardImgPlaceholder}><span style={{ display: 'inline-flex' }}><BookOpen size={40} color="#ffffff" /></span></div>
                     }
                     {terkunci && (
                       <div style={g.overlayKunci}>
@@ -361,7 +362,7 @@ function KuisPage() {
                       backgroundColor: isKhusus ? 'rgba(99,102,241,0.12)' : 'rgba(244,166,35,0.1)',
                       color: isKhusus ? '#6366f1' : 'var(--primary-purple)',
                     }}>
-                      {isKhusus ? '🔒 ' : ''}{m.status}
+                      {isKhusus ? <><Lock size={14} style={{ marginRight: '4px' }} /></> : null}{m.status}
                     </span>
                   </div>
                   <div style={g.cardBody}>
@@ -374,7 +375,7 @@ function KuisPage() {
                       backgroundColor: terkunci ? 'rgba(99,102,241,0.08)' : 'rgba(244,166,35,0.08)',
                       color: terkunci ? '#6366f1' : 'var(--primary-purple)',
                     }}>
-                      {terkunci ? '🔒 Masuk untuk Akses' : '⚡ Mulai Kuis'}
+                      {terkunci ? <><Lock size={14} style={{ marginRight: '4px' }} /> Masuk untuk Akses</> : <><Waves size={14} style={{ marginRight: '4px' }} /> Mulai Kuis</>}
                     </span>
                   </div>
                 </article>

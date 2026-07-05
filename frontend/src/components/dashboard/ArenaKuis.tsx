@@ -1,6 +1,9 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../lib/useAuth';
+import { apiService } from '../../lib/apiService';
 import { styles } from './dashboardStyles';
+import { CheckCircle2, Lock } from 'lucide-react';
 
 type StatusLevel = 'selesai' | 'aktif' | 'terkunci';
 
@@ -279,6 +282,7 @@ const buatPathLengkung = (awal: TitikPeta, akhir: TitikPeta, index: number) => {
 
 const ArenaKuis: React.FC = () => {
   const navigate = useNavigate();
+  const { token } = useAuth();
   const [pelajaranAktifId, setPelajaranAktifId] = useState(arenaPelajaran[0].id);
   const [levelTerbuka, setLevelTerbuka] = useState<Record<string, number>>({
     'bahasa-indonesia': 2,
@@ -292,6 +296,31 @@ const ArenaKuis: React.FC = () => {
     sains: 1,
     'bahasa-inggris': 1,
   });
+
+  useEffect(() => {
+    const loadProgress = async () => {
+      if (!token) return;
+
+      try {
+        const response = await apiService.getArenaProgress(token);
+        const progress = response.progress || [];
+        const nextState: Record<string, number> = {};
+
+        progress.forEach((entry: { lessonId: string; levelId: number; completed: boolean }) => {
+          const currentLevel = nextState[entry.lessonId] || 1;
+          const unlockedLevel = entry.completed ? entry.levelId + 1 : entry.levelId;
+          nextState[entry.lessonId] = Math.max(currentLevel, unlockedLevel);
+        });
+
+        setLevelTerbuka((prev) => ({ ...prev, ...nextState }));
+        setLevelDipilih((prev) => ({ ...prev, ...nextState }));
+      } catch (err) {
+        console.error('Error loading arena progress:', err);
+      }
+    };
+
+    loadProgress();
+  }, [token]);
 
   const pelajaranAktif = useMemo(
     () => arenaPelajaran.find((pelajaran) => pelajaran.id === pelajaranAktifId) || arenaPelajaran[0],
@@ -337,10 +366,19 @@ const ArenaKuis: React.FC = () => {
     });
   };
 
-  const selesaikanLevel = () => {
+  const selesaikanLevel = async () => {
     if (levelDipilihAktif !== levelTerbukaAktif) return;
 
     const levelBerikutnya = Math.min(levelTerbukaAktif + 1, pelajaranAktif.level.length + 1);
+
+    try {
+      if (token) {
+        await apiService.updateArenaProgress(token, pelajaranAktif.id, levelDipilihAktif, true);
+      }
+    } catch (err) {
+      console.error('Error saving arena progress:', err);
+    }
+
     setLevelTerbuka((sebelumnya) => ({
       ...sebelumnya,
       [pelajaranAktif.id]: levelBerikutnya,
@@ -532,7 +570,7 @@ const ArenaKuis: React.FC = () => {
                   aria-label={`${pelajaranAktif.nama}, level ${level.id}, ${level.judul}, ${status}`}
                 >
                   <span style={gaya.nomorLevel}>
-                    {status === 'selesai' ? '✓' : status === 'terkunci' ? '🔒' : level.id}
+                    {status === 'selesai' ? <CheckCircle2 size={16} /> : status === 'terkunci' ? <Lock size={16} /> : level.id}
                   </span>
                   <span style={gaya.labelLevel}>{level.materi}</span>
                 </button>

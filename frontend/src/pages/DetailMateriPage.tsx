@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { BookOpen, FolderOpen, Lock, Sparkles, Waves } from 'lucide-react';
+import { BookOpen, FolderOpen, Sparkles, Waves, ArrowLeft } from 'lucide-react';
 import { useAuth } from '../lib/useAuth';
+import { useTheme, themeStyles } from '../lib/ThemeContext';
 import { apiService } from '../lib/apiService';
 
 interface Materi {
@@ -18,12 +19,22 @@ function DetailMateriPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
+  const { theme, setTheme, colors } = useTheme();
 
   const [materi, setMateri] = useState<Materi | null>(null);
   const [semuaMateri, setSemuaMateri] = useState<Materi[]>([]);
   const [kontenAktif, setKontenAktif] = useState<Materi | null>(null);
   const [loading, setLoading] = useState(true);
   const [parentMateri, setParentMateri] = useState<Materi | null>(null);
+
+  useEffect(() => {
+    if (!isAuthenticated && theme !== 'light') {
+      setTheme('light');
+    }
+  }, [isAuthenticated, theme, setTheme]);
+
+  const activeTheme = isAuthenticated ? theme : 'light';
+  const activeColors = isAuthenticated ? colors : themeStyles.light;
 
   useEffect(() => {
     const fetchData = async () => {
@@ -55,7 +66,7 @@ function DetailMateriPage() {
         }
 
       } catch (err) {
-        console.error('Error loading material detail:', err);
+        console.error(err);
         navigate('/materi');
       } finally {
         setLoading(false);
@@ -75,6 +86,104 @@ function DetailMateriPage() {
     if (terkunci) return;
     setKontenAktif(m);
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleBack = (e: React.MouseEvent) => {
+    e.preventDefault();
+    const prev = sessionStorage.getItem('prevPath');
+    if (prev && prev !== '/' && prev !== '/login' && prev !== '/daftar') {
+      navigate(prev);
+    } else {
+      navigate('/materi');
+    }
+  };
+
+  const shimmerBg = {
+    background: activeTheme === 'dark'
+      ? 'linear-gradient(90deg, #1e293b 25%, #334155 50%, #1e293b 75%)'
+      : 'linear-gradient(90deg, #f0f2f5 25%, #e8eaed 50%, #f0f2f5 75%)',
+    backgroundSize: '1200px 100%',
+    animation: 'shimmer 1.5s infinite',
+  } as React.CSSProperties;
+
+  const s = {
+    wrapper: { 
+      width: '100%', 
+      minHeight: '100vh', 
+      backgroundColor: activeColors.background, 
+      paddingTop: '120px', 
+      paddingBottom: '80px', 
+      animation: 'fadeUp 0.4s ease forwards',
+      transition: 'background-color 0.2s',
+    } as React.CSSProperties,
+    container: { maxWidth: '1200px', margin: '0 auto', padding: '0 40px' } as React.CSSProperties,
+
+    breadcrumb: { display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '24px' } as React.CSSProperties,
+    breadcrumbLink: { fontSize: '14px', color: '#F4A623', fontWeight: 600, textDecoration: 'none' } as React.CSSProperties,
+    sep: { fontSize: '14px', color: activeColors.border } as React.CSSProperties,
+    breadcrumbAktif: { fontSize: '14px', color: activeColors.subtext, fontWeight: 500 } as React.CSSProperties,
+
+    pageHeader: { marginBottom: '28px', display: 'flex', flexDirection: 'column' as const, gap: '10px' } as React.CSSProperties,
+    badgeRow: { display: 'flex', gap: '8px', flexWrap: 'wrap' as const } as React.CSSProperties,
+    badgeKat: { padding: '4px 14px', borderRadius: '100px', fontSize: '12px', fontWeight: 700, backgroundColor: 'rgba(244,166,35,0.1)', color: '#F4A623', textTransform: 'uppercase' as const, letterSpacing: '0.5px' } as React.CSSProperties,
+    badgeStatus: { padding: '4px 14px', borderRadius: '100px', fontSize: '12px', fontWeight: 700 } as React.CSSProperties,
+    judul: { fontSize: '32px', fontWeight: 900, color: activeColors.text, lineHeight: 1.2, margin: 0 } as React.CSSProperties,
+
+    layoutGrid: { display: 'grid' } as React.CSSProperties,
+
+    gridGambar: { borderRadius: '20px', overflow: 'hidden', position: 'relative' as const, height: '280px' } as React.CSSProperties,
+    gambar: { width: '100%', height: '100%', objectFit: 'cover' as const, display: 'block' } as React.CSSProperties,
+    gambarPlaceholder: { width: '100%', height: '100%', backgroundColor: activeColors.background, display: 'flex', alignItems: 'center', justifyContent: 'center' } as React.CSSProperties,
+    labelMateriAktif: { position: 'absolute' as const, bottom: '16px', left: '16px', backgroundColor: 'rgba(0,0,0,0.6)', color: '#fff', padding: '6px 14px', borderRadius: '100px', fontSize: '13px', fontWeight: 600, backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', gap: '8px' } as React.CSSProperties,
+    dotAktif: { width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#F4A623', flexShrink: 0 } as React.CSSProperties,
+
+    gridKonten: { display: 'flex', flexDirection: 'column' as const, gap: '20px', minWidth: 0 } as React.CSSProperties,
+
+    bannerGuest: { display: 'flex', alignItems: 'center', gap: '12px', backgroundColor: '#fef9ec', border: '1px solid rgba(244,166,35,0.2)', borderRadius: '14px', padding: '12px 18px' } as React.CSSProperties,
+    teksBanner: { fontSize: '14px', color: '#92400e', margin: 0, lineHeight: 1.5 } as React.CSSProperties,
+
+    kartuKonten: { backgroundColor: activeColors.surface, borderRadius: '20px', padding: '28px 32px', border: `1px solid ${activeColors.border}`, boxShadow: '0 4px 20px rgba(0,0,0,0.03)', position: 'relative' as const, overflow: 'hidden', transition: 'background-color 0.2s, border-color 0.2s' } as React.CSSProperties,
+    kartuKontenHeader: { display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px', marginBottom: '20px', flexWrap: 'wrap' as const } as React.CSSProperties,
+    judulKonten: { fontSize: '20px', fontWeight: 800, color: activeColors.text, margin: 0, lineHeight: 1.3, flex: 1 } as React.CSSProperties,
+    badgeKonten: { padding: '4px 12px', borderRadius: '100px', fontSize: '11px', fontWeight: 700, flexShrink: 0 } as React.CSSProperties,
+
+    teksKontenWrap: { display: 'flex', flexDirection: 'column' as const, gap: '0px' } as React.CSSProperties,
+    paragraf: { fontSize: '15px', color: activeColors.subtext, lineHeight: 1.85, margin: '0 0 12px 0' } as React.CSSProperties,
+
+    kontenTerkunciWrap: { position: 'relative' as const } as React.CSSProperties,
+    gradienBlur: { position: 'absolute' as const, bottom: '80px', left: 0, right: 0, height: '80px', background: `linear-gradient(to bottom, transparent, ${activeColors.surface})`, pointerEvents: 'none' as const } as React.CSSProperties,
+
+    kotakKunci: { display: 'flex', flexDirection: 'column' as const, alignItems: 'center', textAlign: 'center' as const, gap: '12px', padding: '24px', backgroundColor: activeTheme === 'dark' ? activeColors.background : '#f8f9ff', border: `1px solid ${activeColors.border}`, marginTop: '8px', transition: 'background-color 0.2s, border-color 0.2s' } as React.CSSProperties,
+    ikonKunciWrap: { width: '52px', height: '52px', borderRadius: '16px', backgroundColor: 'rgba(99,102,241,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center' } as React.CSSProperties,
+    judulKunci: { fontSize: '18px', fontWeight: 800, color: activeColors.text, margin: 0 } as React.CSSProperties,
+    deskKunci: { fontSize: '14px', color: activeColors.subtext, margin: '4px 0 0 0', lineHeight: 1.5 } as React.CSSProperties,
+    grupTombolKunci: { display: 'flex', gap: '10px', flexWrap: 'wrap' as const, justifyContent: 'center' } as React.CSSProperties,
+    btnDaftar: { padding: '12px 28px', backgroundColor: '#F4A623', color: '#ffffff', borderRadius: '12px', fontSize: '14px', fontWeight: 700, textDecoration: 'none', boxShadow: '0 6px 16px rgba(244,166,35,0.25)' } as React.CSSProperties,
+    btnMasuk: { padding: '12px 20px', backgroundColor: activeColors.background, color: activeColors.text, borderRadius: '12px', fontSize: '14px', fontWeight: 600, textDecoration: 'none' } as React.CSSProperties,
+
+    kotakKuis: { backgroundColor: activeColors.surface, border: `1px solid ${activeColors.border}`, borderRadius: '20px', padding: '24px 28px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap' as const, boxShadow: '0 4px 20px rgba(244,166,35,0.04)', transition: 'background-color 0.2s, border-color 0.2s' } as React.CSSProperties,
+    badgeSiap: { fontSize: '13px', fontWeight: 700, color: '#16a34a' } as React.CSSProperties,
+    teksKuis: { fontSize: '14px', color: activeColors.subtext, margin: '4px 0 0 0' } as React.CSSProperties,
+    btnKuis: { display: 'flex', alignItems: 'center', gap: '8px', padding: '12px 28px', backgroundColor: '#F4A623', color: '#ffffff', border: 'none', borderRadius: '12px', fontSize: '14px', fontWeight: 700, cursor: 'pointer', boxShadow: '0 6px 16px rgba(244,166,35,0.25)', whiteSpace: 'nowrap' as const } as React.CSSProperties,
+
+    sidebar: { position: 'sticky' as const, top: '110px', display: 'flex', flexDirection: 'column' as const, gap: '16px' } as React.CSSProperties,
+    kartuSidebar: { backgroundColor: activeColors.surface, borderRadius: '20px', padding: '24px', border: `1px solid ${activeColors.border}`, boxShadow: '0 4px 20px rgba(0,0,0,0.03)', transition: 'background-color 0.2s, border-color 0.2s' } as React.CSSProperties,
+    judulSidebar: { fontSize: '15px', fontWeight: 700, color: activeColors.text, margin: '0 0 16px 0' } as React.CSSProperties,
+    listMateri: { display: 'flex', flexDirection: 'column' as const, gap: '4px' } as React.CSSProperties,
+    itemMateri: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', padding: '12px 12px 12px 14px', borderRadius: '12px', border: 'none', background: 'none', textAlign: 'left' as const, transition: 'all 0.2s ease', width: '100%' } as React.CSSProperties,
+    itemMateriKiri: { display: 'flex', alignItems: 'flex-start', gap: '10px', flex: 1, minWidth: 0 } as React.CSSProperties,
+    dotItem: { width: '8px', height: '8px', borderRadius: '50%', flexShrink: 0, marginTop: '5px' } as React.CSSProperties,
+    itemJudul: { fontSize: '13px', margin: 0, lineHeight: 1.35, whiteSpace: 'pre-wrap' as const, wordBreak: 'break-word' as const } as React.CSSProperties,
+    itemKat: { fontSize: '11px', color: activeColors.subtext, margin: '3px 0 0 0', fontWeight: 500 } as React.CSSProperties,
+
+    miniCta: { backgroundColor: '#F4A623', borderRadius: '20px', padding: '20px', display: 'flex', flexDirection: 'column' as const, gap: '12px' } as React.CSSProperties,
+    teksCtaMini: { fontSize: '13px', color: '#ffffff', margin: 0, lineHeight: 1.5 } as React.CSSProperties,
+    btnCtaMini: { display: 'block', textAlign: 'center' as const, padding: '10px 0', backgroundColor: '#ffffff', color: '#F4A623', borderRadius: '10px', fontSize: '13px', fontWeight: 800, textDecoration: 'none' } as React.CSSProperties,
+
+    skeletonLine: { borderRadius: '8px', ...shimmerBg } as React.CSSProperties,
+    skeletonImg: { width: '100%', height: '280px', borderRadius: '20px', ...shimmerBg } as React.CSSProperties,
+    skeletonKonten: { backgroundColor: activeColors.surface, borderRadius: '20px', padding: '28px 32px' } as React.CSSProperties,
+    skeletonSidebar: { backgroundColor: activeColors.surface, borderRadius: '20px', padding: '24px' } as React.CSSProperties,
   };
 
   if (loading || !materi || !kontenAktif) {
@@ -116,7 +225,23 @@ function DetailMateriPage() {
       <div style={s.container}>
 
         <nav style={s.breadcrumb} aria-label="Breadcrumb">
-          <Link to="/materi" style={s.breadcrumbLink}>Materi</Link>
+          <button
+            onClick={handleBack}
+            style={{
+              ...s.breadcrumbLink,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              background: 'none',
+              border: 'none',
+              padding: 0,
+              cursor: 'pointer',
+              fontFamily: 'inherit',
+            }}
+          >
+            <ArrowLeft size={16} />
+            <span>Kembali</span>
+          </button>
           <span style={s.sep}>›</span>
           {parentMateri && parentMateri.id !== materi.id && (
             <>
@@ -136,9 +261,9 @@ function DetailMateriPage() {
               <span style={{
                 ...s.badgeStatus,
                 backgroundColor: materi.status === 'Khusus Member' ? 'rgba(99,102,241,0.1)' : 'rgba(244,166,35,0.1)',
-                color: materi.status === 'Khusus Member' ? '#6366f1' : 'var(--primary-purple)',
+                color: materi.status === 'Khusus Member' ? '#6366f1' : '#F4A623',
               }}>
-                {materi.status === 'Khusus Member' ? <><Lock size={14} style={{ marginRight: '4px' }} /></> : null}{materi.status}
+                {materi.status === 'Khusus Member' ? <></> : null}{materi.status}
               </span>
             )}
           </div>
@@ -177,7 +302,7 @@ function DetailMateriPage() {
                 <span style={{
                   ...s.badgeKonten,
                   backgroundColor: isKhususAktif ? 'rgba(99,102,241,0.1)' : 'rgba(244,166,35,0.1)',
-                  color: isKhususAktif ? '#6366f1' : 'var(--primary-purple)',
+                  color: isKhususAktif ? '#6366f1' : '#F4A623',
                 }}>
                   {kontenAktif.status}
                 </span>
@@ -217,7 +342,7 @@ function DetailMateriPage() {
                 <button
                   style={s.btnKuis}
                   className="tombol-efek-ringan"
-                  onClick={() => navigate('/kuis', { state: { dariTeaser: true, levelId: kontenAktif.id, namaLevel: kontenAktif.title } })}
+                  onClick={() => navigate(`/kuis/${kontenAktif.id}`, { state: { dariTeaser: true, levelId: kontenAktif.id, namaLevel: kontenAktif.title } })}
                 >
                   <span>Mulai Kuis</span>
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -234,7 +359,7 @@ function DetailMateriPage() {
                 {parentMateri ? parentMateri.title : 'Tahapan Materi'}
               </h3>
               {relatedMaterials.length === 0 ? (
-                <p style={{ fontSize: '13px', color: 'var(--text-muted)', margin: 0, lineHeight: 1.6 }}>
+                <p style={{ fontSize: '13px', color: activeColors.subtext, margin: 0, lineHeight: 1.6 }}>
                   Belum ada sub-materi untuk topik ini.
                 </p>
               ) : (
@@ -250,7 +375,7 @@ function DetailMateriPage() {
                         style={{
                           ...s.itemMateri,
                           backgroundColor: aktif ? 'rgba(244,166,35,0.08)' : 'transparent',
-                          borderLeft: aktif ? '3px solid var(--primary-purple)' : '3px solid transparent',
+                          borderLeft: aktif ? '3px solid #F4A623' : '3px solid transparent',
                           cursor: terkunci ? 'default' : 'pointer',
                           opacity: terkunci ? 0.6 : 1,
                           paddingLeft: isParent ? '14px' : '24px',
@@ -259,14 +384,14 @@ function DetailMateriPage() {
                       >
                         <div style={s.itemMateriKiri}>
                           {isParent ? (
-                            <div style={{ ...s.dotItem, backgroundColor: aktif ? 'var(--primary-purple)' : '#94a3b8', width: '10px', height: '10px' }} />
+                            <div style={{ ...s.dotItem, backgroundColor: aktif ? '#F4A623' : '#94a3b8', width: '10px', height: '10px' }} />
                           ) : (
-                            <div style={{ ...s.dotItem, backgroundColor: aktif ? 'var(--primary-purple)' : '#cbd5e1', width: '6px', height: '6px', marginLeft: '4px' }} />
+                            <div style={{ ...s.dotItem, backgroundColor: aktif ? '#F4A623' : '#cbd5e1', width: '6px', height: '6px', marginLeft: '4px' }} />
                           )}
                           <div>
                             <p style={{ 
                               ...s.itemJudul, 
-                              color: aktif ? 'var(--primary-purple)' : 'var(--text-dark)', 
+                              color: aktif ? '#F4A623' : activeColors.text, 
                               fontWeight: aktif ? 700 : isParent ? 600 : 500,
                               fontSize: isParent ? '14px' : '13px'
                             }}>
@@ -278,7 +403,7 @@ function DetailMateriPage() {
                           </div>
                         </div>
                         {aktif && (
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--primary-purple)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#F4A623" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                             <polyline points="9 18 15 12 9 6"/>
                           </svg>
                         )}
@@ -346,83 +471,5 @@ const shimmerCSS = `
     to { opacity: 1; transform: translateY(0); }
   }
 `;
-
-const shimmerBg = {
-  background: 'linear-gradient(90deg, #f0f2f5 25%, #e8eaed 50%, #f0f2f5 75%)',
-  backgroundSize: '1200px 100%',
-  animation: 'shimmer 1.5s infinite',
-} as React.CSSProperties;
-
-const s = {
-  wrapper: { width: '100%', minHeight: '100vh', backgroundColor: 'var(--bg-gray)', paddingTop: '120px', paddingBottom: '80px', animation: 'fadeUp 0.4s ease forwards' } as React.CSSProperties,
-  container: { maxWidth: '1200px', margin: '0 auto', padding: '0 40px' } as React.CSSProperties,
-
-  breadcrumb: { display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '24px' } as React.CSSProperties,
-  breadcrumbLink: { fontSize: '14px', color: 'var(--primary-purple)', fontWeight: 600, textDecoration: 'none' } as React.CSSProperties,
-  sep: { fontSize: '14px', color: '#cbd5e1' } as React.CSSProperties,
-  breadcrumbAktif: { fontSize: '14px', color: 'var(--text-muted)', fontWeight: 500 } as React.CSSProperties,
-
-  pageHeader: { marginBottom: '28px', display: 'flex', flexDirection: 'column' as const, gap: '10px' } as React.CSSProperties,
-  badgeRow: { display: 'flex', gap: '8px', flexWrap: 'wrap' as const } as React.CSSProperties,
-  badgeKat: { padding: '4px 14px', borderRadius: '100px', fontSize: '12px', fontWeight: 700, backgroundColor: 'rgba(244,166,35,0.1)', color: 'var(--primary-purple)', textTransform: 'uppercase' as const, letterSpacing: '0.5px' } as React.CSSProperties,
-  badgeStatus: { padding: '4px 14px', borderRadius: '100px', fontSize: '12px', fontWeight: 700 } as React.CSSProperties,
-  judul: { fontSize: '32px', fontWeight: 900, color: 'var(--text-dark)', lineHeight: 1.2, margin: 0 } as React.CSSProperties,
-
-  layoutGrid: { display: 'grid' } as React.CSSProperties,
-
-  gridGambar: { borderRadius: '20px', overflow: 'hidden', position: 'relative' as const, height: '280px' } as React.CSSProperties,
-  gambar: { width: '100%', height: '100%', objectFit: 'cover' as const, display: 'block' } as React.CSSProperties,
-  gambarPlaceholder: { width: '100%', height: '100%', backgroundColor: 'var(--light-purple)', display: 'flex', alignItems: 'center', justifyContent: 'center' } as React.CSSProperties,
-  labelMateriAktif: { position: 'absolute' as const, bottom: '16px', left: '16px', backgroundColor: 'rgba(0,0,0,0.6)', color: '#fff', padding: '6px 14px', borderRadius: '100px', fontSize: '13px', fontWeight: 600, backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', gap: '8px' } as React.CSSProperties,
-  dotAktif: { width: '8px', height: '8px', borderRadius: '50%', backgroundColor: 'var(--primary-purple)', flexShrink: 0 } as React.CSSProperties,
-
-  gridKonten: { display: 'flex', flexDirection: 'column' as const, gap: '20px', minWidth: 0 } as React.CSSProperties,
-
-  bannerGuest: { display: 'flex', alignItems: 'center', gap: '12px', backgroundColor: '#fef9ec', border: '1px solid rgba(244,166,35,0.2)', borderRadius: '14px', padding: '12px 18px' } as React.CSSProperties,
-  teksBanner: { fontSize: '14px', color: '#92400e', margin: 0, lineHeight: 1.5 } as React.CSSProperties,
-
-  kartuKonten: { backgroundColor: '#ffffff', borderRadius: '20px', padding: '28px 32px', border: '1px solid rgba(244,166,35,0.08)', boxShadow: '0 4px 20px rgba(0,0,0,0.03)', position: 'relative' as const, overflow: 'hidden' } as React.CSSProperties,
-  kartuKontenHeader: { display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px', marginBottom: '20px', flexWrap: 'wrap' as const } as React.CSSProperties,
-  judulKonten: { fontSize: '20px', fontWeight: 800, color: 'var(--text-dark)', margin: 0, lineHeight: 1.3, flex: 1 } as React.CSSProperties,
-  badgeKonten: { padding: '4px 12px', borderRadius: '100px', fontSize: '11px', fontWeight: 700, flexShrink: 0 } as React.CSSProperties,
-
-  teksKontenWrap: { display: 'flex', flexDirection: 'column' as const, gap: '0px' } as React.CSSProperties,
-  paragraf: { fontSize: '15px', color: 'var(--text-muted)', lineHeight: 1.85, margin: '0 0 12px 0' } as React.CSSProperties,
-
-  kontenTerkunciWrap: { position: 'relative' as const } as React.CSSProperties,
-  gradienBlur: { position: 'absolute' as const, bottom: '80px', left: 0, right: 0, height: '80px', background: 'linear-gradient(to bottom, transparent, #ffffff)', pointerEvents: 'none' as const } as React.CSSProperties,
-
-  kotakKunci: { display: 'flex', flexDirection: 'column' as const, alignItems: 'center', textAlign: 'center' as const, gap: '12px', padding: '24px', backgroundColor: '#f8f9ff', borderRadius: '16px', border: '1px solid rgba(99,102,241,0.12)', marginTop: '8px' } as React.CSSProperties,
-  ikonKunciWrap: { width: '52px', height: '52px', borderRadius: '16px', backgroundColor: 'rgba(99,102,241,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center' } as React.CSSProperties,
-  judulKunci: { fontSize: '18px', fontWeight: 800, color: 'var(--text-dark)', margin: 0 } as React.CSSProperties,
-  deskKunci: { fontSize: '14px', color: 'var(--text-muted)', margin: '4px 0 0 0', lineHeight: 1.5 } as React.CSSProperties,
-  grupTombolKunci: { display: 'flex', gap: '10px', flexWrap: 'wrap' as const, justifyContent: 'center' } as React.CSSProperties,
-  btnDaftar: { padding: '12px 28px', backgroundColor: 'var(--primary-purple)', color: '#ffffff', borderRadius: '12px', fontSize: '14px', fontWeight: 700, textDecoration: 'none', boxShadow: '0 6px 16px rgba(244,166,35,0.25)' } as React.CSSProperties,
-  btnMasuk: { padding: '12px 20px', backgroundColor: '#f0f2f5', color: 'var(--text-dark)', borderRadius: '12px', fontSize: '14px', fontWeight: 600, textDecoration: 'none' } as React.CSSProperties,
-
-  kotakKuis: { backgroundColor: '#ffffff', border: '1px solid rgba(244,166,35,0.12)', borderRadius: '20px', padding: '24px 28px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap' as const, boxShadow: '0 4px 20px rgba(244,166,35,0.04)' } as React.CSSProperties,
-  badgeSiap: { fontSize: '13px', fontWeight: 700, color: '#16a34a' } as React.CSSProperties,
-  teksKuis: { fontSize: '14px', color: 'var(--text-muted)', margin: '4px 0 0 0' } as React.CSSProperties,
-  btnKuis: { display: 'flex', alignItems: 'center', gap: '8px', padding: '12px 28px', backgroundColor: 'var(--primary-purple)', color: '#ffffff', border: 'none', borderRadius: '12px', fontSize: '14px', fontWeight: 700, cursor: 'pointer', boxShadow: '0 6px 16px rgba(244,166,35,0.25)', whiteSpace: 'nowrap' as const } as React.CSSProperties,
-
-  sidebar: { position: 'sticky' as const, top: '110px', display: 'flex', flexDirection: 'column' as const, gap: '16px' } as React.CSSProperties,
-  kartuSidebar: { backgroundColor: '#ffffff', borderRadius: '20px', padding: '24px', border: '1px solid rgba(244,166,35,0.1)', boxShadow: '0 4px 20px rgba(0,0,0,0.03)' } as React.CSSProperties,
-  judulSidebar: { fontSize: '15px', fontWeight: 700, color: 'var(--text-dark)', margin: '0 0 16px 0' } as React.CSSProperties,
-  listMateri: { display: 'flex', flexDirection: 'column' as const, gap: '4px' } as React.CSSProperties,
-  itemMateri: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', padding: '12px 12px 12px 14px', borderRadius: '12px', border: 'none', background: 'none', textAlign: 'left' as const, transition: 'all 0.2s ease', width: '100%' } as React.CSSProperties,
-  itemMateriKiri: { display: 'flex', alignItems: 'flex-start', gap: '10px', flex: 1, minWidth: 0 } as React.CSSProperties,
-  dotItem: { width: '8px', height: '8px', borderRadius: '50%', flexShrink: 0, marginTop: '5px' } as React.CSSProperties,
-  itemJudul: { fontSize: '13px', margin: 0, lineHeight: 1.35, whiteSpace: 'pre-wrap' as const, wordBreak: 'break-word' as const } as React.CSSProperties,
-  itemKat: { fontSize: '11px', color: 'var(--text-muted)', margin: '3px 0 0 0', fontWeight: 500 } as React.CSSProperties,
-
-  miniCta: { backgroundColor: 'var(--primary-purple)', borderRadius: '20px', padding: '20px', display: 'flex', flexDirection: 'column' as const, gap: '12px' } as React.CSSProperties,
-  teksCtaMini: { fontSize: '13px', color: '#ffffff', margin: 0, lineHeight: 1.5 } as React.CSSProperties,
-  btnCtaMini: { display: 'block', textAlign: 'center' as const, padding: '10px 0', backgroundColor: '#ffffff', color: 'var(--primary-purple)', borderRadius: '10px', fontSize: '13px', fontWeight: 800, textDecoration: 'none' } as React.CSSProperties,
-
-  skeletonLine: { borderRadius: '8px', ...shimmerBg } as React.CSSProperties,
-  skeletonImg: { width: '100%', height: '280px', borderRadius: '20px', ...shimmerBg } as React.CSSProperties,
-  skeletonKonten: { backgroundColor: '#ffffff', borderRadius: '20px', padding: '28px 32px' } as React.CSSProperties,
-  skeletonSidebar: { backgroundColor: '#ffffff', borderRadius: '20px', padding: '24px' } as React.CSSProperties,
-};
 
 export default DetailMateriPage;

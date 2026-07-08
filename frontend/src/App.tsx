@@ -1,5 +1,6 @@
 import { BrowserRouter as Router, Routes, Route, useLocation, Navigate } from 'react-router-dom';
 import { AuthProvider } from './lib/authContext';
+import { ThemeProvider } from './lib/ThemeContext';
 import { ProtectedRoute } from './lib/protectedRoute';
 import { AdminRoute } from './lib/AdminRoute';
 import LoginPage from './pages/LoginPage'; 
@@ -57,7 +58,9 @@ function App() {
   return (
     <Router>
       <AuthProvider>
-        <AppContent />
+        <ThemeProvider>
+          <AppContent />
+        </ThemeProvider>
       </AuthProvider>
     </Router>
   );

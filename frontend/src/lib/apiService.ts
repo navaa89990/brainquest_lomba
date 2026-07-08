@@ -182,4 +182,52 @@ export const apiService = {
     });
     return response.json();
   },
+
+  async createMaterial(token: string, materialData: any) {
+    const response = await fetch(`${API_BASE_URL}/api/materials`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(materialData),
+    });
+    return response.json();
+  },
+
+  async updateMaterial(token: string, materialId: number, materialData: any) {
+    const response = await fetch(`${API_BASE_URL}/api/materials/${materialId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(materialData),
+    });
+    return response.json();
+  },
+
+  async deleteMaterial(token: string, materialId: number) {
+    const response = await fetch(`${API_BASE_URL}/api/materials/${materialId}`, {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    return response.json();
+  },
+
+  async updateQuestion(token: string, questionId: number, questionData: any) {
+    const response = await fetch(`${API_BASE_URL}/api/questions/${questionId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(questionData),
+    });
+    return response.json();
+  },
 };
+
+

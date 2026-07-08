@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { BookOpen, Lock, Sparkles } from 'lucide-react';
 import { useAuth } from '../lib/useAuth';
+import { useTheme, themeStyles } from '../lib/ThemeContext';
 import { apiService } from '../lib/apiService';
 
 interface Materi {
@@ -20,8 +21,18 @@ function MateriPage() {
   const [loading, setLoading] = useState(true);
   const [kartuHover, setKartuHover] = useState<number | null>(null);
   const { isAuthenticated, isLoading } = useAuth();
+  const { theme, setTheme, colors } = useTheme();
 
   const daftarKategori = ['Semua', 'Pemrograman', 'Pengetahuan Umum', 'Bahasa Indonesia', 'Bahasa Inggris'];
+
+  useEffect(() => {
+    if (!isAuthenticated && theme !== 'light') {
+      setTheme('light');
+    }
+  }, [isAuthenticated, theme, setTheme]);
+
+  const activeTheme = isAuthenticated ? theme : 'light';
+  const activeColors = isAuthenticated ? colors : themeStyles.light;
 
   useEffect(() => {
     const loadMaterials = async () => {
@@ -30,14 +41,13 @@ function MateriPage() {
         const response = await apiService.getMaterials(1, 100, kategoriAktif !== 'Semua' ? kategoriAktif : undefined);
         const allMaterials = response.materials || [];
         
-        // FILTER: Hanya tampilkan parent (parent_id null atau undefined)
         const parentOnly = allMaterials.filter((item: Materi) => 
           item.parent_id === null || item.parent_id === undefined
         );
         
         setBankMateri(parentOnly);
       } catch (err) {
-        console.error('Error loading materials:', err);
+        console.error(err);
         setBankMateri([]);
       } finally {
         setLoading(false);
@@ -48,6 +58,340 @@ function MateriPage() {
   }, [kategoriAktif]);
 
   const isTerkunci = (m: Materi) => m.status === 'Khusus Member' && !isAuthenticated;
+
+  const s = {
+    wrapper: {
+      width: '100%',
+      minHeight: '100vh',
+      backgroundColor: activeColors.background,
+      paddingTop: '120px',
+      paddingBottom: '80px',
+      transition: 'background-color 0.2s',
+    } as React.CSSProperties,
+
+    container: {
+      maxWidth: '1200px',
+      margin: '0 auto',
+      padding: '0 40px',
+    } as React.CSSProperties,
+
+    header: {
+      marginBottom: '40px',
+      display: 'flex',
+      flexDirection: 'column',
+      gap: '10px',
+    } as React.CSSProperties,
+
+    labelKecil: {
+      fontSize: '13px',
+      fontWeight: 700,
+      color: '#F4A623',
+      letterSpacing: '2px',
+    } as React.CSSProperties,
+
+    judul: {
+      fontSize: '40px',
+      fontWeight: 900,
+      color: activeColors.text,
+      margin: 0,
+      lineHeight: 1.15,
+    } as React.CSSProperties,
+
+    subjudul: {
+      fontSize: '16px',
+      color: activeColors.subtext,
+      margin: 0,
+    } as React.CSSProperties,
+
+    filterBar: {
+      display: 'flex',
+      flexWrap: 'wrap' as const,
+      gap: '10px',
+      marginBottom: '40px',
+    } as React.CSSProperties,
+
+    btnKat: {
+      padding: '10px 22px',
+      borderRadius: '100px',
+      fontSize: '14px',
+      fontWeight: 600,
+      cursor: 'pointer',
+      transition: 'all 0.2s ease',
+      outline: 'none',
+      display: 'flex',
+      alignItems: 'center',
+    } as React.CSSProperties,
+
+    grid: {
+      display: 'grid',
+      gridTemplateColumns: 'repeat(3, 1fr)',
+      gap: '24px',
+    } as React.CSSProperties,
+
+    card: {
+      backgroundColor: activeColors.surface,
+      border: '1px solid transparent',
+      borderRadius: '20px',
+      overflow: 'hidden',
+      display: 'flex',
+      flexDirection: 'column',
+      transition: 'transform 0.3s cubic-bezier(0.25,1,0.5,1), box-shadow 0.3s ease, border-color 0.3s ease, background-color 0.2s',
+      cursor: 'pointer',
+    } as React.CSSProperties,
+
+    cardTerkunci: {
+      backgroundColor: activeTheme === 'dark' ? '#1e293b' : '#0f172a',
+      border: activeTheme === 'dark' ? `1px solid ${activeColors.border}` : '1px solid rgba(99,102,241,0.2)',
+      borderRadius: '20px',
+      overflow: 'hidden',
+      display: 'flex',
+      flexDirection: 'column',
+      cursor: 'default',
+      boxShadow: '0 4px 24px rgba(99,102,241,0.08)',
+    } as React.CSSProperties,
+
+    cardImgWrap: {
+      position: 'relative',
+      width: '100%',
+      height: '180px',
+      overflow: 'hidden',
+      flexShrink: 0,
+    } as React.CSSProperties,
+
+    cardImg: {
+      width: '100%',
+      height: '100%',
+      objectFit: 'cover' as const,
+      display: 'block',
+      transition: 'transform 0.4s ease',
+    } as React.CSSProperties,
+
+    cardImgPlaceholder: {
+      width: '100%',
+      height: '100%',
+      backgroundColor: activeColors.background,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+    } as React.CSSProperties,
+
+    overlayKunci: {
+      position: 'absolute' as const,
+      inset: 0,
+      display: 'flex',
+      flexDirection: 'column' as const,
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: '8px',
+      zIndex: 2,
+    } as React.CSSProperties,
+
+    ikonKunciWrap: {
+      width: '56px',
+      height: '56px',
+      borderRadius: '50%',
+      backgroundColor: 'rgba(99,102,241,0.85)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      backdropFilter: 'blur(4px)',
+      boxShadow: '0 0 0 8px rgba(99,102,241,0.15)',
+    } as React.CSSProperties,
+
+    teksKunciOverlay: {
+      fontSize: '12px',
+      fontWeight: 700,
+      color: '#ffffff',
+      backgroundColor: 'rgba(0,0,0,0.5)',
+      padding: '4px 12px',
+      borderRadius: '100px',
+      backdropFilter: 'blur(4px)',
+      letterSpacing: '0.5px',
+    } as React.CSSProperties,
+
+    badge: {
+      position: 'absolute' as const,
+      top: '12px',
+      right: '12px',
+      padding: '4px 12px',
+      borderRadius: '100px',
+      fontSize: '12px',
+      fontWeight: 700,
+      textTransform: 'capitalize' as const,
+      zIndex: 3,
+    } as React.CSSProperties,
+
+    badgeKategori: {
+      position: 'absolute' as const,
+      bottom: '12px',
+      left: '12px',
+      padding: '4px 12px',
+      borderRadius: '100px',
+      fontSize: '11px',
+      fontWeight: 700,
+      backgroundColor: 'rgba(0,0,0,0.45)',
+      color: '#ffffff',
+      backdropFilter: 'blur(4px)',
+      textTransform: 'uppercase' as const,
+      letterSpacing: '0.5px',
+      zIndex: 3,
+    } as React.CSSProperties,
+
+    cardBody: {
+      padding: '20px 20px 12px 20px',
+      display: 'flex',
+      flexDirection: 'column',
+      gap: '8px',
+      flex: 1,
+    } as React.CSSProperties,
+
+    cardJudul: {
+      fontSize: '17px',
+      fontWeight: 700,
+      color: colors.text,
+      margin: 0,
+      lineHeight: 1.3,
+    } as React.CSSProperties,
+
+    cardDeskripsi: {
+      fontSize: '14px',
+      color: colors.subtext,
+      lineHeight: 1.6,
+      margin: 0,
+      display: '-webkit-box',
+      WebkitLineClamp: 3,
+      WebkitBoxOrient: 'vertical' as const,
+      overflow: 'hidden',
+    } as React.CSSProperties,
+
+    cardFooter: {
+      padding: '12px 20px 20px 20px',
+    } as React.CSSProperties,
+
+    cardFooterKunci: {
+      padding: '16px 20px 20px 20px',
+      borderTop: '1px solid rgba(99,102,241,0.12)',
+      display: 'flex',
+      flexDirection: 'column' as const,
+      gap: '12px',
+    } as React.CSSProperties,
+
+    pesanKunci: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: '8px',
+    } as React.CSSProperties,
+
+    teksPesanKunci: {
+      fontSize: '13px',
+      color: '#94a3b8',
+      fontWeight: 500,
+    } as React.CSSProperties,
+
+    grupTombolKunci: {
+      display: 'flex',
+      gap: '8px',
+    } as React.CSSProperties,
+
+    btnMasukKunci: {
+      flex: 1,
+      textAlign: 'center' as const,
+      padding: '10px 0',
+      borderRadius: '10px',
+      fontSize: '13px',
+      fontWeight: 700,
+      textDecoration: 'none',
+      backgroundColor: 'rgba(99,102,241,0.12)',
+      color: '#818cf8',
+      border: '1px solid rgba(99,102,241,0.2)',
+    } as React.CSSProperties,
+
+    btnDaftarKunci: {
+      flex: 2,
+      textAlign: 'center' as const,
+      padding: '10px 0',
+      borderRadius: '10px',
+      fontSize: '13px',
+      fontWeight: 700,
+      textDecoration: 'none',
+      backgroundColor: '#6366f1',
+      color: '#ffffff',
+      boxShadow: '0 4px 12px rgba(99,102,241,0.3)',
+    } as React.CSSProperties,
+
+    btnPelajari: {
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: '8px',
+      textAlign: 'center' as const,
+      padding: '11px 0',
+      borderRadius: '12px',
+      fontSize: '14px',
+      fontWeight: 700,
+      textDecoration: 'none',
+      transition: 'all 0.25s ease',
+    } as React.CSSProperties,
+
+    loadingWrap: {
+      width: '100%',
+    } as React.CSSProperties,
+
+    skeletonGrid: {
+      display: 'grid',
+      gridTemplateColumns: 'repeat(3, 1fr)',
+      gap: '24px',
+    } as React.CSSProperties,
+
+    skeletonCard: {
+      backgroundColor: activeColors.surface,
+      borderRadius: '20px',
+      overflow: 'hidden',
+      border: `1px solid ${activeColors.border}`,
+    } as React.CSSProperties,
+
+    skeletonImg: {
+      width: '100%',
+      height: '180px',
+      background: activeTheme === 'dark' 
+        ? 'linear-gradient(90deg, #1e293b 25%, #334155 50%, #1e293b 75%)'
+        : 'linear-gradient(90deg, #f0f2f5 25%, #e8eaed 50%, #f0f2f5 75%)',
+      backgroundSize: '800px 100%',
+      animation: 'shimmer 1.5s infinite',
+    } as React.CSSProperties,
+
+    skeletonBody: {
+      padding: '20px',
+      display: 'flex',
+      flexDirection: 'column' as const,
+      gap: '8px',
+    } as React.CSSProperties,
+
+    skeletonLine: {
+      height: '14px',
+      borderRadius: '6px',
+      background: activeTheme === 'dark' 
+        ? 'linear-gradient(90deg, #1e293b 25%, #334155 50%, #1e293b 75%)'
+        : 'linear-gradient(90deg, #f0f2f5 25%, #e8eaed 50%, #f0f2f5 75%)',
+      backgroundSize: '800px 100%',
+      animation: 'shimmer 1.5s infinite',
+    } as React.CSSProperties,
+
+    kosong: {
+      display: 'flex',
+      flexDirection: 'column' as const,
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: '16px',
+      padding: '80px 0',
+    } as React.CSSProperties,
+
+    teksKosong: {
+      fontSize: '16px',
+      color: activeColors.subtext,
+      fontWeight: 500,
+    } as React.CSSProperties,
+  };
 
   return (
     <div style={s.wrapper}>
@@ -68,9 +412,9 @@ function MateriPage() {
                 onClick={() => setKategoriAktif(kat)}
                 style={{
                   ...s.btnKat,
-                  backgroundColor: aktif ? 'var(--primary-purple)' : '#ffffff',
-                  color: aktif ? '#ffffff' : 'var(--text-dark)',
-                  border: aktif ? '1.5px solid var(--primary-purple)' : '1.5px solid rgba(244,166,35,0.2)',
+                  backgroundColor: aktif ? '#F4A623' : activeColors.surface,
+                  color: aktif ? '#ffffff' : activeColors.text,
+                  border: aktif ? '1.5px solid #F4A623' : `1.5px solid ${activeColors.border}`,
                   boxShadow: aktif ? '0 4px 14px rgba(244,166,35,0.25)' : 'none',
                 }}
               >
@@ -98,7 +442,7 @@ function MateriPage() {
           </div>
         ) : bankMateri.length === 0 ? (
           <div style={s.kosong}>
-            <span style={{ display: 'inline-flex' }}><Sparkles size={48} color="#a855f7" /></span>
+            <span style={{ display: 'inline-flex' }}><Sparkles size={48} color="#F4A623" /></span>
             <p style={s.teksKosong}>Belum ada materi untuk kategori ini.</p>
           </div>
         ) : (
@@ -186,9 +530,9 @@ function MateriPage() {
                       <span style={{
                         ...s.badge,
                         backgroundColor: m.status === 'Khusus Member' ? 'rgba(99,102,241,0.12)' : 'rgba(244,166,35,0.1)',
-                        color: m.status === 'Khusus Member' ? '#6366f1' : 'var(--primary-purple)',
+                        color: m.status === 'Khusus Member' ? '#6366f1' : '#F4A623',
                       }}>
-                        {m.status === 'Khusus Member' ? <><Lock size={14} style={{ marginRight: '4px' }} /></> : null}{m.status}
+                        {m.status === 'Khusus Member' ? <Lock size={14} style={{ marginRight: '4px' }} /> : null}{m.status}
                       </span>
                     )}
                     <span style={s.badgeKategori}>{m.category}</span>
@@ -204,8 +548,8 @@ function MateriPage() {
                       to={`/materi/${m.id}`}
                       style={{
                         ...s.btnPelajari,
-                        backgroundColor: hover ? 'var(--primary-purple)' : 'rgba(244,166,35,0.08)',
-                        color: hover ? '#ffffff' : 'var(--primary-purple)',
+                        backgroundColor: hover ? '#F4A623' : 'rgba(244,166,35,0.08)',
+                        color: hover ? '#ffffff' : '#F4A623',
                       }}
                     >
                       <span>Pelajari</span>
@@ -245,329 +589,5 @@ function MateriPage() {
     </div>
   );
 }
-
-const s = {
-  wrapper: {
-    width: '100%',
-    minHeight: '100vh',
-    backgroundColor: 'var(--bg-gray)',
-    paddingTop: '120px',
-    paddingBottom: '80px',
-  } as React.CSSProperties,
-
-  container: {
-    maxWidth: '1200px',
-    margin: '0 auto',
-    padding: '0 40px',
-  } as React.CSSProperties,
-
-  header: {
-    marginBottom: '40px',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '10px',
-  } as React.CSSProperties,
-
-  labelKecil: {
-    fontSize: '13px',
-    fontWeight: 700,
-    color: 'var(--primary-purple)',
-    letterSpacing: '2px',
-  } as React.CSSProperties,
-
-  judul: {
-    fontSize: '40px',
-    fontWeight: 900,
-    color: 'var(--text-dark)',
-    margin: 0,
-    lineHeight: 1.15,
-  } as React.CSSProperties,
-
-  subjudul: {
-    fontSize: '16px',
-    color: 'var(--text-muted)',
-    margin: 0,
-  } as React.CSSProperties,
-
-  filterBar: {
-    display: 'flex',
-    flexWrap: 'wrap' as const,
-    gap: '10px',
-    marginBottom: '40px',
-  } as React.CSSProperties,
-
-  btnKat: {
-    padding: '10px 22px',
-    borderRadius: '100px',
-    fontSize: '14px',
-    fontWeight: 600,
-    cursor: 'pointer',
-    transition: 'all 0.2s ease',
-    outline: 'none',
-    display: 'flex',
-    alignItems: 'center',
-  } as React.CSSProperties,
-
-  grid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(3, 1fr)',
-    gap: '24px',
-  } as React.CSSProperties,
-
-  card: {
-    backgroundColor: '#ffffff',
-    border: '1px solid rgba(244,166,35,0.1)',
-    borderRadius: '20px',
-    overflow: 'hidden',
-    display: 'flex',
-    flexDirection: 'column',
-    transition: 'transform 0.3s cubic-bezier(0.25,1,0.5,1), box-shadow 0.3s ease, border-color 0.3s ease',
-    cursor: 'pointer',
-  } as React.CSSProperties,
-
-  cardTerkunci: {
-    backgroundColor: '#0f172a',
-    border: '1px solid rgba(99,102,241,0.2)',
-    borderRadius: '20px',
-    overflow: 'hidden',
-    display: 'flex',
-    flexDirection: 'column',
-    cursor: 'default',
-    boxShadow: '0 4px 24px rgba(99,102,241,0.08)',
-  } as React.CSSProperties,
-
-  cardImgWrap: {
-    position: 'relative',
-    width: '100%',
-    height: '180px',
-    overflow: 'hidden',
-    flexShrink: 0,
-  } as React.CSSProperties,
-
-  cardImg: {
-    width: '100%',
-    height: '100%',
-    objectFit: 'cover' as const,
-    display: 'block',
-    transition: 'transform 0.4s ease',
-  } as React.CSSProperties,
-
-  cardImgPlaceholder: {
-    width: '100%',
-    height: '100%',
-    backgroundColor: 'var(--light-purple)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-  } as React.CSSProperties,
-
-  overlayKunci: {
-    position: 'absolute' as const,
-    inset: 0,
-    display: 'flex',
-    flexDirection: 'column' as const,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: '8px',
-    zIndex: 2,
-  } as React.CSSProperties,
-
-  ikonKunciWrap: {
-    width: '56px',
-    height: '56px',
-    borderRadius: '50%',
-    backgroundColor: 'rgba(99,102,241,0.85)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backdropFilter: 'blur(4px)',
-    boxShadow: '0 0 0 8px rgba(99,102,241,0.15)',
-  } as React.CSSProperties,
-
-  teksKunciOverlay: {
-    fontSize: '12px',
-    fontWeight: 700,
-    color: '#ffffff',
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    padding: '4px 12px',
-    borderRadius: '100px',
-    backdropFilter: 'blur(4px)',
-    letterSpacing: '0.5px',
-  } as React.CSSProperties,
-
-  badge: {
-    position: 'absolute' as const,
-    top: '12px',
-    right: '12px',
-    padding: '4px 12px',
-    borderRadius: '100px',
-    fontSize: '12px',
-    fontWeight: 700,
-    textTransform: 'capitalize' as const,
-    zIndex: 3,
-  } as React.CSSProperties,
-
-  badgeKategori: {
-    position: 'absolute' as const,
-    bottom: '12px',
-    left: '12px',
-    padding: '4px 12px',
-    borderRadius: '100px',
-    fontSize: '11px',
-    fontWeight: 700,
-    backgroundColor: 'rgba(0,0,0,0.45)',
-    color: '#ffffff',
-    backdropFilter: 'blur(4px)',
-    textTransform: 'uppercase' as const,
-    letterSpacing: '0.5px',
-  } as React.CSSProperties,
-
-  cardBody: {
-    padding: '20px 20px 12px 20px',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '8px',
-    flex: 1,
-  } as React.CSSProperties,
-
-  cardJudul: {
-    fontSize: '17px',
-    fontWeight: 700,
-    color: 'var(--text-dark)',
-    margin: 0,
-    lineHeight: 1.3,
-  } as React.CSSProperties,
-
-  cardDeskripsi: {
-    fontSize: '14px',
-    color: 'var(--text-muted)',
-    lineHeight: 1.6,
-    margin: 0,
-    display: '-webkit-box',
-    WebkitLineClamp: 3,
-    WebkitBoxOrient: 'vertical' as const,
-    overflow: 'hidden',
-  } as React.CSSProperties,
-
-  cardFooter: {
-    padding: '12px 20px 20px 20px',
-  } as React.CSSProperties,
-
-  cardFooterKunci: {
-    padding: '16px 20px 20px 20px',
-    borderTop: '1px solid rgba(99,102,241,0.12)',
-    display: 'flex',
-    flexDirection: 'column' as const,
-    gap: '12px',
-  } as React.CSSProperties,
-
-  pesanKunci: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-  } as React.CSSProperties,
-
-  teksPesanKunci: {
-    fontSize: '13px',
-    color: '#94a3b8',
-    fontWeight: 500,
-  } as React.CSSProperties,
-
-  grupTombolKunci: {
-    display: 'flex',
-    gap: '8px',
-  } as React.CSSProperties,
-
-  btnMasukKunci: {
-    flex: 1,
-    textAlign: 'center' as const,
-    padding: '10px 0',
-    borderRadius: '10px',
-    fontSize: '13px',
-    fontWeight: 700,
-    textDecoration: 'none',
-    backgroundColor: 'rgba(99,102,241,0.12)',
-    color: '#818cf8',
-    border: '1px solid rgba(99,102,241,0.2)',
-  } as React.CSSProperties,
-
-  btnDaftarKunci: {
-    flex: 2,
-    textAlign: 'center' as const,
-    padding: '10px 0',
-    borderRadius: '10px',
-    fontSize: '13px',
-    fontWeight: 700,
-    textDecoration: 'none',
-    backgroundColor: '#6366f1',
-    color: '#ffffff',
-    boxShadow: '0 4px 12px rgba(99,102,241,0.3)',
-  } as React.CSSProperties,
-
-  btnPelajari: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: '8px',
-    textAlign: 'center' as const,
-    padding: '11px 0',
-    borderRadius: '12px',
-    fontSize: '14px',
-    fontWeight: 700,
-    textDecoration: 'none',
-    transition: 'all 0.25s ease',
-  } as React.CSSProperties,
-
-  loadingWrap: {
-    width: '100%',
-  } as React.CSSProperties,
-
-  skeletonGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(3, 1fr)',
-    gap: '24px',
-  } as React.CSSProperties,
-
-  skeletonCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: '20px',
-    overflow: 'hidden',
-    border: '1px solid rgba(244,166,35,0.08)',
-  } as React.CSSProperties,
-
-  skeletonImg: {
-    width: '100%',
-    height: '180px',
-    background: 'linear-gradient(90deg, #f0f2f5 25%, #e8eaed 50%, #f0f2f5 75%)',
-    backgroundSize: '800px 100%',
-    animation: 'shimmer 1.5s infinite',
-  } as React.CSSProperties,
-
-  skeletonBody: {
-    padding: '20px',
-  } as React.CSSProperties,
-
-  skeletonLine: {
-    borderRadius: '6px',
-    background: 'linear-gradient(90deg, #f0f2f5 25%, #e8eaed 50%, #f0f2f5 75%)',
-    backgroundSize: '800px 100%',
-    animation: 'shimmer 1.5s infinite',
-  } as React.CSSProperties,
-
-  kosong: {
-    display: 'flex',
-    flexDirection: 'column' as const,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: '16px',
-    padding: '80px 0',
-  } as React.CSSProperties,
-
-  teksKosong: {
-    fontSize: '16px',
-    color: 'var(--text-muted)',
-    fontWeight: 500,
-  } as React.CSSProperties,
-};
 
 export default MateriPage;

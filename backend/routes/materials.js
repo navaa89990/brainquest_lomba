@@ -3,7 +3,6 @@ import { optional } from '../middleware/auth.js';
 
 const router = express.Router();
 
-// Get all materials
 router.get('/', optional, async (req, res) => {
   try {
     const page = Math.max(parseInt(req.query.page) || 1, 1);
@@ -24,7 +23,6 @@ router.get('/', optional, async (req, res) => {
 
     const materials = await req.db.all(query, params);
 
-    // Get total count
     let countQuery = 'SELECT COUNT(*) as count FROM materials';
     const countParams = [];
     if (category) {
@@ -34,7 +32,6 @@ router.get('/', optional, async (req, res) => {
 
     const total = await req.db.get(countQuery, countParams);
 
-    // If user is logged in, get their quiz attempts for each material
     let userStats = {};
     if (req.user) {
       const stats = await req.db.all(
@@ -76,7 +73,121 @@ router.get('/', optional, async (req, res) => {
   }
 });
 
-// Get single material with questions
+router.post('/', optional, async (req, res) => {
+  try {
+    if (!req.user || req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Akses ditolak. Khusus Admin.' });
+    }
+
+    const { title, content, category, status, parent_id } = req.body;
+
+    if (!title || !content) {
+      return res.status(400).json({ error: 'Judul dan konten materi harus diisi' });
+    }
+
+    const result = await req.db.run(
+      'INSERT INTO materials (title, content, category, status, parent_id) VALUES (?, ?, ?, ?, ?)',
+      [title, content, category || 'Umum', status || 'Gratis', parent_id || null]
+    );
+
+    res.status(201).json({
+      id: result.lastID,
+      material: {
+        id: result.lastID,
+        title,
+        content,
+        category,
+        status,
+        parent_id,
+      },
+      message: 'Materi berhasil ditambahkan',
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Gagal menambahkan materi baru' });
+  }
+});
+
+router.put('/:materialId', optional, async (req, res) => {
+  try {
+    if (!req.user || req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Akses ditolak. Khusus Admin.' });
+    }
+
+    const { title, content, category, status, parent_id } = req.body;
+
+    await req.db.run(
+      'UPDATE materials SET title = ?, content = ?, category = ?, status = ?, parent_id = ? WHERE id = ?',
+      [title, content, category, status, parent_id || null, req.params.materialId]
+    );
+
+    res.json({ message: 'Materi berhasil diperbarui' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Gagal memperbarui materi' });
+  }
+});
+
+router.delete('/:materialId', optional, async (req, res) => {
+  try {
+    if (!req.user || req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Akses ditolak. Khusus Admin.' });
+    }
+
+    await req.db.run('DELETE FROM questions WHERE material_id = ?', [req.params.materialId]);
+    await req.db.run('DELETE FROM materials WHERE id = ?', [req.params.materialId]);
+
+    res.json({ message: 'Materi beserta kuis berhasil dihapus' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Gagal menghapus materi' });
+  }
+});
+
+router.post('/:materialId/questions', optional, async (req, res) => {
+  try {
+    if (!req.user || req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Akses ditolak. Khusus Admin.' });
+    }
+
+    const { question_text, option_a, option_b, option_c, option_d, correct_answer } = req.body;
+
+    if (!question_text || !option_a || !option_b || !option_c || !correct_answer) {
+      return res.status(400).json({ error: 'Pertanyaan, pilihan A-C, dan jawaban benar harus diisi' });
+    }
+
+    const result = await req.db.run(
+      'INSERT INTO questions (material_id, question_text, option_a, option_b, option_c, option_d, correct_answer) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [req.params.materialId, question_text, option_a, option_b, option_c, option_d || null, correct_answer]
+    );
+
+    res.status(201).json({ id: result.lastID, message: 'Pertanyaan kuis berhasil ditambahkan' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Gagal menambahkan pertanyaan kuis' });
+  }
+});
+
+router.put('/questions/:questionId', optional, async (req, res) => {
+  try {
+    if (!req.user || req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Akses ditolak. Khusus Admin.' });
+    }
+
+    const { question_text, option_a, option_b, option_c, option_d, correct_answer } = req.body;
+
+    await req.db.run(
+      'UPDATE questions SET question_text = ?, option_a = ?, option_b = ?, option_c = ?, option_d = ?, correct_answer = ? WHERE id = ?',
+      [question_text, option_a, option_b, option_c, option_d || null, correct_answer, req.params.questionId]
+    );
+
+    res.json({ message: 'Pertanyaan kuis berhasil diperbarui' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Gagal memperbarui pertanyaan kuis' });
+  }
+});
+
 router.get('/:materialId', async (req, res) => {
   try {
     const material = await req.db.get('SELECT * FROM materials WHERE id = ?', [
@@ -88,7 +199,7 @@ router.get('/:materialId', async (req, res) => {
     }
 
     const questions = await req.db.all(
-      'SELECT id, question_text, option_a, option_b, option_c, option_d FROM questions WHERE material_id = ?',
+      'SELECT id, question_text, option_a, option_b, option_c, option_d, correct_answer FROM questions WHERE material_id = ?',
       [req.params.materialId]
     );
 
@@ -110,10 +221,9 @@ router.get('/:materialId', async (req, res) => {
   }
 });
 
-// Verify quiz answers
 router.post('/:materialId/verify', async (req, res) => {
   try {
-    const { answers } = req.body; // answers should be array of { questionId, answer }
+    const { answers } = req.body;
 
     if (!Array.isArray(answers)) {
       return res.status(400).json({ error: 'Answers must be an array' });
@@ -154,7 +264,6 @@ router.post('/:materialId/verify', async (req, res) => {
   }
 });
 
-// Get categories
 router.get('/categories', async (req, res) => {
   try {
     const categories = await req.db.all(

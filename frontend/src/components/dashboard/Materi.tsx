@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { BookOpen, CheckCircle2 } from 'lucide-react';
 import { useAuth } from '../../lib/useAuth';
 import { apiService } from '../../lib/apiService';
+import { useTheme } from '../../lib/ThemeContext';
 
 interface MateriItem {
   id: number;
@@ -20,42 +21,91 @@ interface MateriData {
   parent_id?: number | null;
 }
 
+interface ArenaProgressItem {
+  lessonId: string;
+  levelId: number;
+  completed: boolean;
+}
+
 export default function Materi() {
   const navigate = useNavigate();
   const { token } = useAuth();
+  const { theme, colors } = useTheme();
   const [materiList, setMateriList] = useState<MateriItem[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchMaterials = async () => {
-      setLoading(true);
-      try {
-        const response = await apiService.getMaterials(1, 100);
-        const materials = response?.materials || [];
+  const fetchMaterials = useCallback(async () => {
+    setLoading(true);
+    try {
+      const response = await apiService.getMaterials(1, 100);
+      const materials: MateriData[] = response?.materials || [];
 
-        const parentMaterials = materials.filter(
-          (m: MateriData) => m.parent_id === null || m.parent_id === undefined
-        );
+      const parentMaterials = materials.filter(
+        (m) => m.parent_id === null || m.parent_id === undefined
+      );
 
-        const mapped = parentMaterials.map((m: MateriData) => ({
+      let progressItems: ArenaProgressItem[] = [];
+      if (token) {
+        try {
+          const progressResponse = await apiService.getArenaProgress(token);
+          progressItems = progressResponse?.progress || [];
+        } catch {
+          progressItems = [];
+        }
+      }
+
+      const mapped = parentMaterials.map((m) => {
+        const children = materials.filter((c) => c.parent_id === m.id);
+        const totalLevels = children.length + 1;
+        const lessonIdStr = String(m.id);
+        const completedLevels = progressItems.filter(
+          (p) =>
+            p.lessonId === lessonIdStr &&
+            p.completed &&
+            p.levelId >= 1 &&
+            p.levelId <= totalLevels
+        ).length;
+        const progress = totalLevels > 0 ? Math.round((completedLevels / totalLevels) * 100) : 0;
+
+        return {
           id: m.id,
           title: m.title,
           content: m.content || 'Belum ada deskripsi',
           category: m.category || 'Umum',
-          progress: 0,
-        }));
+          progress,
+        };
+      });
 
-        setMateriList(mapped);
-      } catch (err) {
-        console.error('Error fetching materials:', err);
-        setMateriList([]);
-      } finally {
-        setLoading(false);
+      setMateriList(mapped);
+    } catch (err) {
+      console.error(err);
+      setMateriList([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [token]);
+
+  useEffect(() => {
+    fetchMaterials();
+  }, [fetchMaterials]);
+
+  useEffect(() => {
+    (window as any).refreshArenaProgress = fetchMaterials;
+
+    const handleStorageSync = (e: StorageEvent) => {
+      if (e.key === 'arenaRefresh') {
+        fetchMaterials();
       }
     };
+    window.addEventListener('storage', handleStorageSync);
 
-    fetchMaterials();
-  }, [token]);
+    return () => {
+      if ((window as any).refreshArenaProgress === fetchMaterials) {
+        delete (window as any).refreshArenaProgress;
+      }
+      window.removeEventListener('storage', handleStorageSync);
+    };
+  }, [fetchMaterials]);
 
   const truncateText = (text: string, maxLength: number = 60) => {
     if (text.length <= maxLength) return text;
@@ -72,7 +122,7 @@ export default function Materi() {
   };
 
   const getCategoryColor = (category: string) => {
-    const colors: { [key: string]: string } = {
+    const categoryColors: { [key: string]: string } = {
       'Matematika': '#6366f1',
       'Pemrograman': '#f59e0b',
       'Bahasa Inggris': '#10b981',
@@ -83,24 +133,246 @@ export default function Materi() {
       'Kimia': '#8b5cf6',
       'Biologi': '#10b981',
     };
-    return colors[category] || '#94a3b8';
+    return categoryColors[category] || '#94a3b8';
+  };
+
+  const dynamicStyles = {
+    header: {
+      marginBottom: '24px',
+    } as React.CSSProperties,
+
+    headerTitle: {
+      fontSize: '24px',
+      fontWeight: 800,
+      color: colors.text,
+      margin: '0 0 8px 0',
+    } as React.CSSProperties,
+
+    headerSub: {
+      color: colors.subtext,
+      margin: 0,
+    } as React.CSSProperties,
+
+    cardsGrid: {
+      display: 'grid',
+      gridTemplateColumns: 'repeat(3, 1fr)',
+      gap: '20px',
+    } as React.CSSProperties,
+
+    cardWrapper: {
+      cursor: 'pointer',
+      transition: 'all 0.3s ease',
+      borderRadius: '20px',
+      background: 'linear-gradient(145deg, #f59e0b, #d97706)',
+      padding: '2px',
+      position: 'relative' as const,
+    } as React.CSSProperties,
+
+    cardInner: {
+      background: colors.surface,
+      borderRadius: '18px',
+      height: '100%',
+      transition: 'all 0.3s ease',
+      overflow: 'hidden',
+    } as React.CSSProperties,
+
+    cardContent: {
+      padding: '20px',
+      display: 'flex',
+      flexDirection: 'column' as const,
+      height: '100%',
+      minHeight: '260px',
+    } as React.CSSProperties,
+
+    cardHeader: {
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'flex-start',
+      marginBottom: '10px',
+    } as React.CSSProperties,
+
+    iconBox: {
+      width: '40px',
+      height: '40px',
+      borderRadius: '12px',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      fontSize: '14px',
+      fontWeight: 700,
+      flexShrink: 0,
+    } as React.CSSProperties,
+
+    cardTitle: {
+      fontSize: '15px',
+      fontWeight: 700,
+      color: colors.text,
+      margin: '0 0 4px 0',
+      lineHeight: 1.3,
+      display: '-webkit-box',
+      WebkitLineClamp: 2,
+      WebkitBoxOrient: 'vertical' as const,
+      overflow: 'hidden',
+    } as React.CSSProperties,
+
+    cardDesc: {
+      fontSize: '12px',
+      color: colors.subtext,
+      margin: '0 0 14px 0',
+      lineHeight: 1.5,
+      flex: 1,
+      display: '-webkit-box',
+      WebkitLineClamp: 3,
+      WebkitBoxOrient: 'vertical' as const,
+      overflow: 'hidden',
+    } as React.CSSProperties,
+
+    cardFooter: {
+      marginTop: 'auto',
+    } as React.CSSProperties,
+
+    progressHeader: {
+      display: 'flex',
+      justifyContent: 'space-between',
+      fontSize: '11px',
+      fontWeight: 600,
+      color: colors.subtext,
+      marginBottom: '4px',
+    } as React.CSSProperties,
+
+    progressLabel: {
+      color: colors.text,
+    } as React.CSSProperties,
+
+    progressValue: {
+      color: '#F4A623',
+    } as React.CSSProperties,
+
+    progressBar: {
+      height: '5px',
+      backgroundColor: colors.border,
+      borderRadius: '100px',
+      overflow: 'hidden',
+      marginBottom: '12px',
+    } as React.CSSProperties,
+
+    progressFill: {
+      height: '100%',
+      borderRadius: '100px',
+      transition: 'width 0.6s ease',
+    } as React.CSSProperties,
+
+    cardButton: {
+      width: '100%',
+      padding: '9px 0',
+      backgroundColor: colors.background,
+      color: colors.text,
+      border: 'none',
+      borderRadius: '10px',
+      fontSize: '12px',
+      fontWeight: 600,
+      cursor: 'pointer',
+      transition: 'all 0.2s ease',
+      fontFamily: 'inherit',
+    } as React.CSSProperties,
+
+    completedBadge: {
+      fontSize: '10px',
+      fontWeight: 700,
+      backgroundColor: theme === 'dark' ? '#064e3b' : '#ecfdf5',
+      color: '#10b981',
+      padding: '3px 10px',
+      borderRadius: '100px',
+    } as React.CSSProperties,
+
+    emptyContainer: {
+      display: 'flex',
+      flexDirection: 'column' as const,
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: '60px 20px',
+      backgroundColor: colors.surface,
+      borderRadius: '24px',
+      border: `1px solid ${colors.border}`,
+      textAlign: 'center' as const,
+    } as React.CSSProperties,
+
+    emptyIcon: {
+      fontSize: '56px',
+      marginBottom: '16px',
+    } as React.CSSProperties,
+
+    emptyTitle: {
+      fontSize: '20px',
+      fontWeight: 700,
+      color: colors.text,
+      margin: '0 0 8px 0',
+    } as React.CSSProperties,
+
+    emptyDesc: {
+      fontSize: '15px',
+      color: colors.subtext,
+      margin: '0 0 24px 0',
+      maxWidth: '400px',
+    } as React.CSSProperties,
+
+    pilihButton: {
+      cursor: 'pointer',
+      position: 'relative' as const,
+      padding: '12px 32px',
+      fontSize: '16px',
+      color: '#F4A623',
+      border: '2px solid #F4A623',
+      borderRadius: '34px',
+      backgroundColor: 'transparent',
+      fontWeight: 700,
+      transition: 'all 0.3s cubic-bezier(0.23, 1, 0.320, 1)',
+      overflow: 'hidden',
+      fontFamily: 'inherit',
+    } as React.CSSProperties,
+
+    skeletonCard: {
+      backgroundColor: colors.surface,
+      borderRadius: '20px',
+      overflow: 'hidden',
+      border: `1px solid ${colors.border}`,
+    } as React.CSSProperties,
+
+    skeletonImage: {
+      height: '120px',
+      backgroundColor: colors.background,
+    } as React.CSSProperties,
+
+    skeletonBody: {
+      padding: '16px',
+      display: 'flex',
+      flexDirection: 'column' as const,
+      gap: '8px',
+    } as React.CSSProperties,
+
+    skeletonLine: {
+      height: '14px',
+      backgroundColor: colors.background,
+      borderRadius: '4px',
+      width: '60%',
+    } as React.CSSProperties,
   };
 
   if (loading) {
     return (
       <div>
-        <header style={styles.header}>
-          <h2 style={styles.headerTitle}>Materi Belajar</h2>
-          <p style={styles.headerSub}>Memuat materi...</p>
+        <header style={dynamicStyles.header}>
+          <h2 style={dynamicStyles.headerTitle}>Materi Belajar</h2>
+          <p style={dynamicStyles.headerSub}>Memuat materi...</p>
         </header>
-        <div style={styles.cardsGrid}>
+        <div style={dynamicStyles.cardsGrid}>
           {[1, 2, 3, 4].map((i) => (
-            <div key={i} style={styles.skeletonCard}>
-              <div style={styles.skeletonImage} />
-              <div style={styles.skeletonBody}>
-                <div style={styles.skeletonLine} />
-                <div style={{ ...styles.skeletonLine, width: '80%' }} />
-                <div style={{ ...styles.skeletonLine, width: '40%' }} />
+            <div key={i} style={dynamicStyles.skeletonCard}>
+              <div style={dynamicStyles.skeletonImage} />
+              <div style={dynamicStyles.skeletonBody}>
+                <div style={dynamicStyles.skeletonLine} />
+                <div style={{ ...dynamicStyles.skeletonLine, width: '80%' }} />
+                <div style={{ ...dynamicStyles.skeletonLine, width: '40%' }} />
               </div>
             </div>
           ))}
@@ -112,17 +384,17 @@ export default function Materi() {
   if (materiList.length === 0) {
     return (
       <div>
-        <header style={styles.header}>
-          <h2 style={styles.headerTitle}>Materi Belajar</h2>
-          <p style={styles.headerSub}>Belum ada materi yang tersedia untukmu.</p>
+        <header style={dynamicStyles.header}>
+          <h2 style={dynamicStyles.headerTitle}>Materi Belajar</h2>
+          <p style={dynamicStyles.headerSub}>Belum ada materi yang tersedia untukmu.</p>
         </header>
-        <div style={styles.emptyContainer}>
-          <span style={styles.emptyIcon}><BookOpen size={48} color="#6366f1" /></span>
-          <h3 style={styles.emptyTitle}>Belum Ada Materi</h3>
-          <p style={styles.emptyDesc}>Kamu belum memulai materi apapun. Pilih materi dari daftar yang tersedia untuk memulai petualangan belajarmu!</p>
+        <div style={dynamicStyles.emptyContainer}>
+          <span style={dynamicStyles.emptyIcon}><BookOpen size={48} color="#6366f1" /></span>
+          <h3 style={dynamicStyles.emptyTitle}>Belum Ada Materi</h3>
+          <p style={dynamicStyles.emptyDesc}>Kamu belum memulai materi apapun. Pilih materi dari daftar yang tersedia untuk memulai petualangan belajarmu!</p>
           <button 
             onClick={() => navigate('/materi')}
-            style={styles.pilihButton}
+            style={dynamicStyles.pilihButton}
             className="tombol-pilih-materi"
           >
             Pilih Materi
@@ -134,45 +406,45 @@ export default function Materi() {
 
   return (
     <div>
-      <header style={styles.header}>
-        <h2 style={styles.headerTitle}>Materi Belajar</h2>
-        <p style={styles.headerSub}>Pilih materi untuk melanjutkan petualangan belajarmu hari ini.</p>
+      <header style={dynamicStyles.header}>
+        <h2 style={dynamicStyles.headerTitle}>Materi Belajar</h2>
+        <p style={dynamicStyles.headerSub}>Pilih materi untuk melanjutkan petualangan belajarmu hari ini.</p>
       </header>
 
-      <section style={styles.cardsGrid}>
+      <section style={dynamicStyles.cardsGrid}>
         {materiList.slice(0, 6).map((materi) => (
           <div 
             key={materi.id} 
-            style={styles.cardWrapper}
+            style={dynamicStyles.cardWrapper}
             className="materi-card"
             onClick={() => navigate(`/materi/${materi.id}`)}
           >
-            <div style={styles.cardInner}>
-              <div style={styles.cardContent}>
-                <div style={styles.cardHeader}>
+            <div style={dynamicStyles.cardInner}>
+              <div style={dynamicStyles.cardContent}>
+                <div style={dynamicStyles.cardHeader}>
                   <div style={{ 
-                    ...styles.iconBox, 
+                    ...dynamicStyles.iconBox, 
                     backgroundColor: `${getCategoryColor(materi.category)}15`,
                     color: getCategoryColor(materi.category),
                   }}>
                     {getInitials(materi.title)}
                   </div>
                   {materi.progress === 100 && (
-                    <span style={styles.completedBadge}><CheckCircle2 size={14} style={{ marginRight: '4px' }} /> Selesai</span>
+                    <span style={dynamicStyles.completedBadge}><CheckCircle2 size={14} style={{ marginRight: '4px' }} /> Selesai</span>
                   )}
                 </div>
                 
-                <h3 style={styles.cardTitle}>{materi.title}</h3>
-                <p style={styles.cardDesc}>{truncateText(materi.content, 55)}</p>
+                <h3 style={dynamicStyles.cardTitle}>{materi.title}</h3>
+                <p style={dynamicStyles.cardDesc}>{truncateText(materi.content, 55)}</p>
                 
-                <div style={styles.cardFooter}>
-                  <div style={styles.progressHeader}>
-                    <span style={styles.progressLabel}>Progres</span>
-                    <span style={styles.progressValue}>{materi.progress}%</span>
+                <div style={dynamicStyles.cardFooter}>
+                  <div style={dynamicStyles.progressHeader}>
+                    <span style={dynamicStyles.progressLabel}>Progres</span>
+                    <span style={dynamicStyles.progressValue}>{materi.progress}%</span>
                   </div>
-                  <div style={styles.progressBar}>
+                  <div style={dynamicStyles.progressBar}>
                     <div style={{ 
-                      ...styles.progressFill, 
+                      ...dynamicStyles.progressFill, 
                       width: `${materi.progress}%`,
                       backgroundColor: materi.progress === 100 ? '#10b981' : '#F4A623'
                     }} />
@@ -180,7 +452,7 @@ export default function Materi() {
                 </div>
 
                 <button 
-                  style={styles.cardButton}
+                  style={dynamicStyles.cardButton}
                   className="tombol-efek-ringan"
                   onClick={(e) => {
                     e.stopPropagation();
@@ -211,7 +483,7 @@ export default function Materi() {
         }
 
         .materi-card .card-inner {
-          background: #ffffff;
+          background: ${colors.surface};
           border-radius: 18px;
           height: 100%;
           transition: all 0.3s ease;
@@ -219,7 +491,7 @@ export default function Materi() {
         }
 
         .materi-card:hover .card-inner {
-          background: #fafafa;
+          background: ${theme === 'dark' ? colors.background : '#fafafa'};
         }
 
         .card-content {
@@ -243,7 +515,7 @@ export default function Materi() {
           border-radius: 12px;
           display: flex;
           align-items: center;
-          justify-content: center;
+          justifyContent: center;
           font-size: 14px;
           font-weight: 700;
           flex-shrink: 0;
@@ -252,7 +524,7 @@ export default function Materi() {
         .card-title {
           font-size: 15px;
           font-weight: 700;
-          color: #0f172a;
+          color: ${colors.text};
           margin: 0 0 4px 0;
           line-height: 1.3;
           display: -webkit-box;
@@ -263,7 +535,7 @@ export default function Materi() {
 
         .card-desc {
           font-size: 12px;
-          color: #64748b;
+          color: ${colors.subtext};
           margin: 0 0 14px 0;
           line-height: 1.5;
           flex: 1;
@@ -282,12 +554,12 @@ export default function Materi() {
           justify-content: space-between;
           font-size: 11px;
           font-weight: 600;
-          color: #64748b;
+          color: ${colors.subtext};
           margin-bottom: 4px;
         }
 
         .progress-label {
-          color: #475569;
+          color: ${colors.text};
         }
 
         .progress-value {
@@ -296,7 +568,7 @@ export default function Materi() {
 
         .progress-bar {
           height: 5px;
-          background-color: #e2e8f0;
+          background-color: ${colors.border};
           border-radius: 100px;
           overflow: hidden;
           margin-bottom: 12px;
@@ -311,8 +583,8 @@ export default function Materi() {
         .card-button {
           width: 100%;
           padding: 9px 0;
-          background-color: #f1f5f9;
-          color: #475569;
+          background-color: ${colors.background};
+          color: ${colors.text};
           border: none;
           border-radius: 10px;
           font-size: 12px;
@@ -330,7 +602,7 @@ export default function Materi() {
         .completed-badge {
           font-size: 10px;
           font-weight: 700;
-          background-color: #ecfdf5;
+          background-color: ${theme === 'dark' ? '#064e3b' : '#ecfdf5'};
           color: #10b981;
           padding: 3px 10px;
           border-radius: 100px;
@@ -402,225 +674,3 @@ export default function Materi() {
     </div>
   );
 }
-
-const styles = {
-  header: {
-    marginBottom: '24px',
-  } as React.CSSProperties,
-
-  headerTitle: {
-    fontSize: '24px',
-    fontWeight: 800,
-    color: '#2d3748',
-    margin: '0 0 8px 0',
-  } as React.CSSProperties,
-
-  headerSub: {
-    color: '#718096',
-    margin: 0,
-  } as React.CSSProperties,
-
-  cardsGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(3, 1fr)',
-    gap: '20px',
-  } as React.CSSProperties,
-
-  cardWrapper: {
-    cursor: 'pointer',
-    transition: 'all 0.3s ease',
-    borderRadius: '20px',
-    background: 'linear-gradient(145deg, #f59e0b, #d97706)',
-    padding: '2px',
-    position: 'relative' as const,
-  } as React.CSSProperties,
-
-  cardInner: {
-    background: '#ffffff',
-    borderRadius: '18px',
-    height: '100%',
-    transition: 'all 0.3s ease',
-    overflow: 'hidden',
-  } as React.CSSProperties,
-
-  cardContent: {
-    padding: '20px',
-    display: 'flex',
-    flexDirection: 'column' as const,
-    height: '100%',
-    minHeight: '260px',
-  } as React.CSSProperties,
-
-  cardHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: '10px',
-  } as React.CSSProperties,
-
-  iconBox: {
-    width: '40px',
-    height: '40px',
-    borderRadius: '12px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    fontSize: '14px',
-    fontWeight: 700,
-    flexShrink: 0,
-  } as React.CSSProperties,
-
-  cardTitle: {
-    fontSize: '15px',
-    fontWeight: 700,
-    color: '#0f172a',
-    margin: '0 0 4px 0',
-    lineHeight: 1.3,
-    display: '-webkit-box',
-    WebkitLineClamp: 2,
-    WebkitBoxOrient: 'vertical' as const,
-    overflow: 'hidden',
-  } as React.CSSProperties,
-
-  cardDesc: {
-    fontSize: '12px',
-    color: '#64748b',
-    margin: '0 0 14px 0',
-    lineHeight: 1.5,
-    flex: 1,
-    display: '-webkit-box',
-    WebkitLineClamp: 3,
-    WebkitBoxOrient: 'vertical' as const,
-    overflow: 'hidden',
-  } as React.CSSProperties,
-
-  cardFooter: {
-    marginTop: 'auto',
-  } as React.CSSProperties,
-
-  progressHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    fontSize: '11px',
-    fontWeight: 600,
-    color: '#64748b',
-    marginBottom: '4px',
-  } as React.CSSProperties,
-
-  progressLabel: {
-    color: '#475569',
-  } as React.CSSProperties,
-
-  progressValue: {
-    color: '#F4A623',
-  } as React.CSSProperties,
-
-  progressBar: {
-    height: '5px',
-    backgroundColor: '#e2e8f0',
-    borderRadius: '100px',
-    overflow: 'hidden',
-    marginBottom: '12px',
-  } as React.CSSProperties,
-
-  progressFill: {
-    height: '100%',
-    borderRadius: '100px',
-    transition: 'width 0.6s ease',
-  } as React.CSSProperties,
-
-  cardButton: {
-    width: '100%',
-    padding: '9px 0',
-    backgroundColor: '#f1f5f9',
-    color: '#475569',
-    border: 'none',
-    borderRadius: '10px',
-    fontSize: '12px',
-    fontWeight: 600,
-    cursor: 'pointer',
-    transition: 'all 0.2s ease',
-    fontFamily: 'inherit',
-  } as React.CSSProperties,
-
-  completedBadge: {
-    fontSize: '10px',
-    fontWeight: 700,
-    backgroundColor: '#ecfdf5',
-    color: '#10b981',
-    padding: '3px 10px',
-    borderRadius: '100px',
-  } as React.CSSProperties,
-
-  emptyContainer: {
-    display: 'flex',
-    flexDirection: 'column' as const,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: '60px 20px',
-    backgroundColor: '#ffffff',
-    borderRadius: '24px',
-    border: '1px solid #e2e8f0',
-    textAlign: 'center' as const,
-  } as React.CSSProperties,
-
-  emptyIcon: {
-    fontSize: '56px',
-    marginBottom: '16px',
-  } as React.CSSProperties,
-
-  emptyTitle: {
-    fontSize: '20px',
-    fontWeight: 700,
-    color: '#0f172a',
-    margin: '0 0 8px 0',
-  } as React.CSSProperties,
-
-  emptyDesc: {
-    fontSize: '15px',
-    color: '#64748b',
-    margin: '0 0 24px 0',
-    maxWidth: '400px',
-  } as React.CSSProperties,
-
-  pilihButton: {
-    cursor: 'pointer',
-    position: 'relative' as const,
-    padding: '12px 32px',
-    fontSize: '16px',
-    color: '#F4A623',
-    border: '2px solid #F4A623',
-    borderRadius: '34px',
-    backgroundColor: 'transparent',
-    fontWeight: 700,
-    transition: 'all 0.3s cubic-bezier(0.23, 1, 0.320, 1)',
-    overflow: 'hidden',
-    fontFamily: 'inherit',
-  } as React.CSSProperties,
-
-  skeletonCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: '20px',
-    overflow: 'hidden',
-    border: '1px solid #e2e8f0',
-  } as React.CSSProperties,
-
-  skeletonImage: {
-    height: '120px',
-    backgroundColor: '#f1f5f9',
-  } as React.CSSProperties,
-
-  skeletonBody: {
-    padding: '16px',
-    display: 'flex',
-    flexDirection: 'column' as const,
-    gap: '8px',
-  } as React.CSSProperties,
-
-  skeletonLine: {
-    height: '14px',
-    backgroundColor: '#f1f5f9',
-    borderRadius: '4px',
-    width: '60%',
-  } as React.CSSProperties,
-};

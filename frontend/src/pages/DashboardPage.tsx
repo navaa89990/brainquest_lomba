@@ -3,11 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import { Flame, Sparkles, Trophy, BookOpen, CheckCircle2 } from 'lucide-react';
 import { useAuth } from '../lib/useAuth';
 import { apiService } from '../lib/apiService';
+import { useTheme } from '../lib/ThemeContext';
 import logo from '../assets/warnalogo.png';
 import Materi from '../components/dashboard/Materi';
 import ArenaKuis from '../components/dashboard/ArenaKuis';
 import Leaderboard from '../components/dashboard/LeaderBoard';
 import Pengaturan from '../components/dashboard/Pengaturan';
+import LearningReminder from '../components/dashboard/LearningReminder';
 
 interface QuizHistory {
   id: number;
@@ -29,6 +31,7 @@ interface MateriData {
 
 function DashboardPage() {
   const navigate = useNavigate();
+  const { theme, colors } = useTheme();
   const [activeMenu, setActiveMenu] = useState('ringkasan');
   const [sidebarBuka, setSidebarBuka] = useState(false);
   const { user, token, logout } = useAuth();
@@ -36,8 +39,70 @@ function DashboardPage() {
   const [allMaterials, setAllMaterials] = useState<MateriData[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(true);
   const [recommendedMaterials, setRecommendedMaterials] = useState<MateriData[]>([]);
+  const [userRank, setUserRank] = useState(1);
+  const [streak, setStreak] = useState(0);
 
   const isAdmin = user?.role === 'admin';
+
+  const handleReadMaterial = () => {
+    const today = new Date().toDateString();
+    localStorage.setItem('streakCount', '1');
+    localStorage.setItem('lastActiveDate', today);
+    setStreak(1);
+  };
+
+  const checkStreak = (historyData: QuizHistory[]) => {
+    const today = new Date().toDateString();
+    const yesterday = new Date(Date.now() - 86400000).toDateString();
+    
+    const lastActiveDate = localStorage.getItem('lastActiveDate');
+    let currentStreak = parseInt(localStorage.getItem('streakCount') || '0', 10);
+    
+    const completedQuizToday = historyData.some(q => {
+      if (!q.completed_at) return false;
+      return new Date(q.completed_at).toDateString() === today;
+    });
+
+    if (!lastActiveDate) {
+      if (completedQuizToday) {
+        currentStreak = 1;
+        localStorage.setItem('streakCount', '1');
+        localStorage.setItem('lastActiveDate', today);
+      } else {
+        currentStreak = 0;
+        localStorage.setItem('streakCount', '0');
+      }
+    } else if (lastActiveDate === today) {
+      if (currentStreak === 0 && completedQuizToday) {
+        currentStreak = 1;
+        localStorage.setItem('streakCount', '1');
+      }
+    } else if (lastActiveDate === yesterday) {
+      currentStreak = currentStreak === 0 ? 1 : currentStreak + 1;
+      localStorage.setItem('streakCount', String(currentStreak));
+      localStorage.setItem('lastActiveDate', today);
+    } else {
+      if (completedQuizToday) {
+        currentStreak = 1;
+        localStorage.setItem('streakCount', '1');
+        localStorage.setItem('lastActiveDate', today);
+      } else {
+        currentStreak = 0;
+        localStorage.setItem('streakCount', '0');
+      }
+    }
+    setStreak(currentStreak);
+  };
+
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'streakCount') {
+        setStreak(parseInt(e.newValue || '0', 10));
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -79,8 +144,25 @@ function DashboardPage() {
         });
 
         setQuizHistory(filteredHistory);
+        checkStreak(filteredHistory);
+
+        if (user?.id) {
+          try {
+            const rankResponse = await apiService.getUserRank(user.id);
+            let baseRank = rankResponse && rankResponse.rank ? rankResponse.rank : 20;
+
+            const totalSolved = filteredHistory.length;
+            const perfectScores = filteredHistory.filter(q => q.score >= 80).length;
+            const activityBoost = Math.floor(totalSolved / 2) + perfectScores;
+
+            const finalRank = Math.max(1, baseRank - activityBoost);
+            setUserRank(finalRank);
+          } catch (e) {
+            console.error(e);
+          }
+        }
       } catch (err) {
-        console.error('Error fetching data:', err);
+        console.error(err);
         setQuizHistory([]);
       } finally {
         setLoadingHistory(false);
@@ -88,7 +170,7 @@ function DashboardPage() {
     };
 
     fetchData();
-  }, [token]);
+  }, [token, user?.id]);
 
   const handleLogout = async () => {
     try {
@@ -97,7 +179,7 @@ function DashboardPage() {
       localStorage.removeItem('user');
       navigate('/');
     } catch (err) {
-      console.error('Logout error:', err);
+      console.error(err);
     }
   };
 
@@ -108,8 +190,8 @@ function DashboardPage() {
         level: user.level,
         xp: user.points,
         xpMax: Math.max(100, user.level * 400),
-        streak: 5,
-        rank: Math.max(1, 20 - user.level),
+        streak: streak,
+        rank: userRank,
         questSelesai: Math.min(quizHistory.length, 5),
         questTotal: 5,
         role: user.role,
@@ -121,7 +203,7 @@ function DashboardPage() {
         xp: 0,
         xpMax: 400,
         streak: 0,
-        rank: 0,
+        rank: 1,
         questSelesai: 0,
         questTotal: 5,
         role: 'user',
@@ -160,6 +242,585 @@ function DashboardPage() {
 
   const getParentMaterials = () => {
     return allMaterials.filter((m) => m.parent_id === null || m.parent_id === undefined);
+  };
+
+  const gaya = {
+    dashboardContainer: {
+      display: 'flex',
+      minHeight: '100vh',
+      backgroundColor: colors.background,
+      position: 'relative',
+    } as React.CSSProperties,
+
+    mobileOverlay: {
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: 'rgba(0, 0, 0, 0.4)',
+      zIndex: 1015,
+    } as React.CSSProperties,
+
+    sidebar: {
+      width: '280px',
+      backgroundColor: theme === 'dark' ? colors.surface : '#F4A623',
+      color: '#ffffff',
+      display: 'flex',
+      flexDirection: 'column',
+      position: 'fixed',
+      top: 0,
+      bottom: 0,
+      left: 0,
+      zIndex: 1010,
+      boxShadow: '4px 0 25px rgba(0, 0, 0, 0.05)',
+      overflowY: 'auto',
+      transition: 'background-color 0.2s',
+    } as React.CSSProperties,
+
+    sidebarHeader: {
+      padding: '28px 20px',
+      display: 'flex',
+      alignItems: 'center',
+      gap: '4px',
+      borderBottom: `1px solid ${theme === 'dark' ? colors.border : 'rgba(255, 255, 255, 0.15)'}`,
+    } as React.CSSProperties,
+
+    sidebarLogoFrame: {
+      width: '72px',
+      height: '72px',
+      overflow: 'hidden',
+      flexShrink: 0,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+    } as React.CSSProperties,
+
+    sidebarLogo: {
+      width: '162px',
+      height: '74px',
+      objectFit: 'cover',
+      objectPosition: '56% center',
+      filter: theme === 'dark' ? 'none' : 'brightness(0) invert(1)',
+      flexShrink: 0,
+    } as React.CSSProperties,
+
+    sidebarTitle: {
+      fontSize: '21px',
+      fontWeight: 800,
+      letterSpacing: '-0.5px',
+      margin: 0,
+      marginLeft: '-4px',
+      transform: 'translateY(6px)',
+      color: theme === 'dark' ? colors.text : '#ffffff',
+    } as React.CSSProperties,
+
+    sidebarNav: {
+      padding: '24px 16px',
+      display: 'flex',
+      flexDirection: 'column',
+      flexGrow: 1,
+    } as React.CSSProperties,
+
+    navList: {
+      listStyle: 'none',
+      padding: 0,
+      margin: 0,
+      display: 'flex',
+      flexDirection: 'column',
+      gap: '8px',
+    } as React.CSSProperties,
+
+    navListItem: {
+      margin: 0,
+      padding: 0,
+    } as React.CSSProperties,
+
+    navItem: {
+      width: '100%',
+      padding: '14px 20px',
+      backgroundColor: 'transparent',
+      border: 'none',
+      borderRadius: '12px',
+      color: theme === 'dark' ? colors.subtext : 'rgba(255, 255, 255, 0.85)',
+      fontSize: '15px',
+      fontWeight: 600,
+      cursor: 'pointer',
+      display: 'flex',
+      alignItems: 'center',
+      textAlign: 'left',
+      transition: 'all 0.2s ease',
+    } as React.CSSProperties,
+
+    navItemActive: {
+      backgroundColor: theme === 'dark' ? colors.background : '#ffffff',
+      color: '#F4A623',
+      boxShadow: '0 8px 16px rgba(0,0,0,0.06)',
+    } as React.CSSProperties,
+
+    sidebarFooter: {
+      padding: '24px 16px',
+      borderTop: `1px solid ${theme === 'dark' ? colors.border : 'rgba(255, 255, 255, 0.15)'}`,
+      display: 'flex',
+      flexDirection: 'column',
+      gap: '8px',
+    } as React.CSSProperties,
+
+    btnLogout: {
+      width: '100%',
+      padding: '14px 20px',
+      backgroundColor: theme === 'dark' ? colors.background : 'rgba(255, 255, 255, 0.1)',
+      border: `1px solid ${theme === 'dark' ? colors.border : 'rgba(255, 255, 255, 0.2)'}`,
+      borderRadius: '12px',
+      color: theme === 'dark' ? colors.text : '#ffffff',
+      fontSize: '15px',
+      fontWeight: 700,
+      cursor: 'pointer',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      transition: 'all 0.2s ease',
+    } as React.CSSProperties,
+
+    mainContent: {
+      flexGrow: 1,
+      paddingLeft: '280px',
+      display: 'flex',
+      flexDirection: 'column',
+      minWidth: 0,
+    } as React.CSSProperties,
+
+    headerBar: {
+      height: '76px',
+      backgroundColor: colors.surface,
+      borderBottom: `1px solid ${colors.border}`,
+      padding: '0 32px',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      position: 'sticky',
+      top: 0,
+      zIndex: 1000,
+    } as React.CSSProperties,
+
+    headerKiri: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: '16px',
+    } as React.CSSProperties,
+
+    btnHamburger: {
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      background: 'none',
+      border: 'none',
+      cursor: 'pointer',
+      color: colors.text,
+      padding: '8px',
+      borderRadius: '8px',
+      backgroundColor: colors.background,
+      WebkitAppearance: 'none',
+    } as React.CSSProperties,
+
+    headerGreeting: {
+      fontSize: '22px',
+      fontWeight: 800,
+      color: colors.text,
+      margin: 0,
+    } as React.CSSProperties,
+
+    headerKanan: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: '24px',
+    } as React.CSSProperties,
+
+    statsIconGroup: {
+      display: 'flex',
+      gap: '12px',
+    } as React.CSSProperties,
+
+    statBadge: {
+      fontSize: '13px',
+      fontWeight: 700,
+      backgroundColor: theme === 'dark' ? 'rgba(249, 115, 22, 0.15)' : '#fef3c7',
+      color: theme === 'dark' ? '#f97316' : '#d97706',
+      padding: '8px 14px',
+      borderRadius: '100px',
+      display: 'flex',
+      alignItems: 'center',
+      gap: '6px',
+    } as React.CSSProperties,
+
+    statBadgeAmber: {
+      fontSize: '13px',
+      fontWeight: 700,
+      backgroundColor: theme === 'dark' ? 'rgba(59, 130, 246, 0.15)' : '#eff6ff',
+      color: theme === 'dark' ? '#60a5fa' : '#3b82f6',
+      padding: '8px 14px',
+      borderRadius: '100px',
+      display: 'flex',
+      alignItems: 'center',
+      gap: '6px',
+    } as React.CSSProperties,
+
+    profilInfo: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: '12px',
+    } as React.CSSProperties,
+
+    avatarMini: {
+      width: '40px',
+      height: '40px',
+      borderRadius: '50%',
+      backgroundColor: '#F4A623',
+      color: '#ffffff',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      fontWeight: 800,
+      fontSize: '14px',
+      boxShadow: '0 4px 12px rgba(244, 166, 35, 0.2)',
+    } as React.CSSProperties,
+
+    contentBody: {
+      padding: '32px',
+      display: 'flex',
+      flexDirection: 'column',
+      gap: '32px',
+      maxWidth: '1200px',
+      width: '100%',
+      margin: '0 auto',
+    } as React.CSSProperties,
+
+    bannerInfo: {
+      background: 'linear-gradient(135deg, #F4A623 0%, #d97706 100%)',
+      borderRadius: '24px',
+      padding: '32px',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: '24px',
+      flexWrap: 'wrap',
+      boxShadow: '0 10px 30px rgba(244, 166, 35, 0.15)',
+    } as React.CSSProperties,
+
+    bannerTeks: {
+      color: '#ffffff',
+      flex: 1,
+      minWidth: '280px',
+    } as React.CSSProperties,
+
+    bannerJudul: {
+      fontSize: '24px',
+      fontWeight: 850,
+      margin: '0 0 10px 0',
+      lineHeight: 1.2,
+    } as React.CSSProperties,
+
+    bannerSubjudul: {
+      fontSize: '14px',
+      color: 'rgba(255, 255, 255, 0.85)',
+      margin: 0,
+      lineHeight: 1.5,
+    } as React.CSSProperties,
+
+    btnBannerCta: {
+      backgroundColor: '#ffffff',
+      color: '#d97706',
+      border: 'none',
+      borderRadius: '14px',
+      padding: '14px 28px',
+      fontWeight: 700,
+      fontSize: '15px',
+      cursor: 'pointer',
+      boxShadow: '0 6px 20px rgba(0,0,0,0.06)',
+      transition: 'all 0.2s ease',
+    } as React.CSSProperties,
+
+    cardsGrid: {
+      display: 'grid',
+      gridTemplateColumns: 'repeat(3, 1fr)',
+      gap: '24px',
+    } as React.CSSProperties,
+
+    kartuUtama: {
+      backgroundColor: colors.surface,
+      borderRadius: '24px',
+      padding: '28px',
+      boxShadow: '0 4px 20px rgba(0, 0, 0, 0.02)',
+      border: `1px solid ${colors.border}`,
+      display: 'flex',
+      flexDirection: 'column',
+    } as React.CSSProperties,
+
+    kartuJudul: {
+      fontSize: '16px',
+      fontWeight: 800,
+      color: colors.text,
+      margin: '0 0 20px 0',
+    } as React.CSSProperties,
+
+    levelWrapper: {
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: '12px',
+    } as React.CSSProperties,
+
+    levelBadge: {
+      fontSize: '12px',
+      fontWeight: 800,
+      backgroundColor: 'rgba(244, 166, 35, 0.1)',
+      color: '#d97706',
+      padding: '6px 12px',
+      borderRadius: '8px',
+    } as React.CSSProperties,
+
+    levelXp: {
+      fontSize: '13px',
+      fontWeight: 700,
+      color: colors.subtext,
+    } as React.CSSProperties,
+
+    progressBarBg: {
+      height: '10px',
+      backgroundColor: colors.border,
+      borderRadius: '100px',
+      overflow: 'hidden',
+      marginBottom: '16px',
+    } as React.CSSProperties,
+
+    progressBarFill: {
+      height: '100%',
+      backgroundColor: '#F4A623',
+      borderRadius: '100px',
+      transition: 'width 0.4s ease-out',
+    } as React.CSSProperties,
+
+    xpInfo: {
+      fontSize: '13px',
+      color: colors.subtext,
+      margin: 0,
+      lineHeight: 1.4,
+    } as React.CSSProperties,
+
+    questHeader: {
+      display: 'flex',
+      justifyContent: 'space-between',
+      fontSize: '13px',
+      fontWeight: 700,
+      color: colors.subtext,
+      marginBottom: '8px',
+    } as React.CSSProperties,
+
+    questProgressTeks: {
+      color: colors.text,
+    } as React.CSSProperties,
+
+    questPersen: {
+      color: '#F4A623',
+    } as React.CSSProperties,
+
+    questList: {
+      listStyle: 'none',
+      padding: 0,
+      margin: 0,
+      display: 'flex',
+      flexDirection: 'column',
+      gap: '12px',
+    } as React.CSSProperties,
+
+    questItem: {
+      display: 'flex',
+      alignItems: 'flex-start',
+      gap: '10px',
+    } as React.CSSProperties,
+
+    questCheckSelesai: {
+      color: '#10b981',
+      fontWeight: 800,
+      fontSize: '14px',
+    } as React.CSSProperties,
+
+    questCheckBelum: {
+      color: colors.subtext,
+      fontWeight: 800,
+      fontSize: '14px',
+    } as React.CSSProperties,
+
+    questItemTeksSelesai: {
+      fontSize: '13px',
+      color: colors.subtext,
+      textDecoration: 'line-through',
+    } as React.CSSProperties,
+
+    questItemTeksBelum: {
+      fontSize: '13px',
+      color: colors.text,
+    } as React.CSSProperties,
+
+    rekomendasiList: {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: '12px',
+    } as React.CSSProperties,
+
+    rekomendasiItem: {
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      padding: '16px 20px',
+      backgroundColor: colors.background,
+      borderRadius: '16px',
+      border: `1px solid ${colors.border}`,
+      cursor: 'pointer',
+      transition: 'all 0.25s ease',
+    } as React.CSSProperties,
+
+    rekomendasiInfo: {
+      flex: 1,
+    } as React.CSSProperties,
+
+    rekomendasiItemJudul: {
+      fontSize: '14px',
+      fontWeight: 750,
+      color: colors.text,
+      margin: '0 0 4px 0',
+      transition: 'color 0.2s ease',
+    } as React.CSSProperties,
+
+    rekomendasiItemSub: {
+      fontSize: '12px',
+      color: colors.subtext,
+      margin: 0,
+    } as React.CSSProperties,
+
+    rekomendasiArrow: {
+      color: colors.subtext,
+      transition: 'all 0.25s ease',
+      flexShrink: 0,
+      marginLeft: '12px',
+    } as React.CSSProperties,
+
+    xpBadge: {
+      fontSize: '12px',
+      fontWeight: 800,
+      backgroundColor: '#ecfdf5',
+      color: '#10b981',
+      padding: '6px 12px',
+      borderRadius: '8px',
+    } as React.CSSProperties,
+
+    sectionBawah: {
+      width: '100%',
+    } as React.CSSProperties,
+
+    kartuLebar: {
+      backgroundColor: colors.surface,
+      borderRadius: '24px',
+      padding: '28px',
+      boxShadow: '0 4px 20px rgba(0, 0, 0, 0.02)',
+      border: `1px solid ${colors.border}`,
+    } as React.CSSProperties,
+
+    riwayatWrapper: {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: '12px',
+    } as React.CSSProperties,
+
+    riwayatItem: {
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      padding: '16px',
+      borderBottom: `1px solid ${colors.border}`,
+    } as React.CSSProperties,
+
+    riwayatInfoKiri: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: '16px',
+    } as React.CSSProperties,
+
+    ikonBukuKecil: {
+      display: 'inline-flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      width: '20px',
+      height: '20px',
+      color: '#6366f1',
+      flexShrink: 0,
+      opacity: 0.95,
+    } as React.CSSProperties,
+
+    riwayatJudulTeks: {
+      fontSize: '14px',
+      fontWeight: 750,
+      color: colors.text,
+      margin: '0 0 4px 0',
+    } as React.CSSProperties,
+
+    riwayatKategori: {
+      fontSize: '12px',
+      color: colors.subtext,
+      margin: 0,
+    } as React.CSSProperties,
+
+    riwayatInfoKanan: {
+      display: 'flex',
+      alignItems: 'center',
+    } as React.CSSProperties,
+
+    skorBadge: {
+      fontSize: '13px',
+      fontWeight: 700,
+      padding: '6px 14px',
+      borderRadius: '100px',
+    } as React.CSSProperties,
+
+    kosongContainer: {
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: '40px 20px',
+      gap: '8px',
+    } as React.CSSProperties,
+
+    kosongIcon: {
+      fontSize: '48px',
+      marginBottom: '8px',
+    } as React.CSSProperties,
+
+    kosongText: {
+      fontSize: '16px',
+      color: colors.subtext,
+      fontWeight: 500,
+      margin: 0,
+    } as React.CSSProperties,
+
+    kosongSubText: {
+      fontSize: '14px',
+      color: colors.subtext,
+      margin: 0,
+    } as React.CSSProperties,
+
+    kosongButton: {
+      marginTop: '12px',
+      padding: '10px 24px',
+      backgroundColor: '#F4A623',
+      color: '#ffffff',
+      border: 'none',
+      borderRadius: '12px',
+      fontSize: '14px',
+      fontWeight: 700,
+      cursor: 'pointer',
+      transition: 'all 0.2s ease',
+    } as React.CSSProperties,
   };
 
   return (
@@ -293,7 +954,7 @@ function DashboardPage() {
                 <span aria-hidden="true"><Flame size={16} color="#f97316" /></span> {displayUser.streak}<span className="stat-teks"> Hari Streak</span>
               </span>
               <span style={gaya.statBadgeAmber} title={`Peringkat ${displayUser.rank}`}>
-                <span aria-hidden="true"><Trophy size={16} color="#f59e0b" /></span> Peringkat <span className="stat-teks">#{displayUser.rank}</span>
+                <span aria-hidden="true"><Trophy size={16} color={theme === 'dark' ? '#60a5fa' : '#3b82f6'} /></span> Peringkat <span className="stat-teks">#{displayUser.rank}</span>
               </span>
             </div>
             
@@ -397,7 +1058,10 @@ function DashboardPage() {
                             key={i} 
                             style={gaya.rekomendasiItem}
                             className="rekomendasi-item-clickable"
-                            onClick={() => navigate(`/materi/${mat.id}`)}
+                            onClick={() => {
+                              handleReadMaterial();
+                              navigate(`/materi/${mat.id}`);
+                            }}
                           >
                             <div style={gaya.rekomendasiInfo}>
                               <h4 style={gaya.rekomendasiItemJudul} className="rekomendasi-judul">{mat.title}</h4>
@@ -412,7 +1076,7 @@ function DashboardPage() {
                           </div>
                         ))
                       ) : (
-                        <p style={{ fontSize: '14px', color: '#94a3b8', textAlign: 'center' }}>
+                        <p style={{ fontSize: '14px', color: colors.subtext, textAlign: 'center' }}>
                           Belum ada materi tersedia
                         </p>
                       )}
@@ -499,6 +1163,8 @@ function DashboardPage() {
             )}
         </div>
       </main>
+
+      <LearningReminder onNavigateToSettings={() => setActiveMenu('settings')} />
 
       <style>{`
         .sidebar-element {
@@ -593,7 +1259,7 @@ function DashboardPage() {
           transition: all 0.25s ease;
         }
         .rekomendasi-item-clickable:hover {
-          background-color: #ffffff !important;
+          background-color: ${colors.surface} !important;
           border-color: #F4A623 !important;
           box-shadow: 0 4px 16px rgba(244, 166, 35, 0.12) !important;
           transform: translateY(-2px);
@@ -606,7 +1272,6 @@ function DashboardPage() {
           color: #F4A623 !important;
         }
 
-        /* ===== TOMBOL MULAI KUIS UNDERLINE ===== */
         .tombol-mulai-kuis-underline {
           position: relative;
           display: inline-flex;
@@ -623,7 +1288,7 @@ function DashboardPage() {
           margin: 0;
           font-size: 14px;
           font-weight: 600;
-          color: #475569;
+          color: ${colors.text};
           position: relative;
           transition: color 0.3s ease;
         }
@@ -649,7 +1314,7 @@ function DashboardPage() {
         }
 
         .tombol-mulai-kuis-underline .tombol-kuis-icon {
-          color: #475569;
+          color: ${colors.text};
           transition: all 0.3s ease;
           width: 16px;
           height: 16px;
@@ -677,576 +1342,5 @@ function DashboardPage() {
     </div>
   );
 }
-
-const gaya = {
-  dashboardContainer: {
-    display: 'flex',
-    minHeight: '100vh',
-    backgroundColor: '#f4f6f9',
-    position: 'relative',
-  } as React.CSSProperties,
-
-  mobileOverlay: {
-    position: 'fixed',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
-    zIndex: 1015,
-  } as React.CSSProperties,
-
-  sidebar: {
-    width: '280px',
-    backgroundColor: '#F4A623',
-    color: '#ffffff',
-    display: 'flex',
-    flexDirection: 'column',
-    position: 'fixed',
-    top: 0,
-    bottom: 0,
-    left: 0,
-    zIndex: 1010,
-    boxShadow: '4px 0 25px rgba(0, 0, 0, 0.05)',
-    overflowY: 'auto',
-  } as React.CSSProperties,
-
-  sidebarHeader: {
-    padding: '28px 20px',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '4px',
-    borderBottom: '1px solid rgba(255, 255, 255, 0.15)',
-  } as React.CSSProperties,
-
-  sidebarLogoFrame: {
-    width: '72px',
-    height: '72px',
-    overflow: 'hidden',
-    flexShrink: 0,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-  } as React.CSSProperties,
-
-  sidebarLogo: {
-    width: '162px',
-    height: '74px',
-    objectFit: 'cover',
-    objectPosition: '56% center',
-    filter: 'brightness(0) invert(1)',
-    flexShrink: 0,
-  } as React.CSSProperties,
-
-  sidebarTitle: {
-    fontSize: '21px',
-    fontWeight: 800,
-    letterSpacing: '-0.5px',
-    margin: 0,
-    marginLeft: '-4px',
-    transform: 'translateY(6px)',
-  } as React.CSSProperties,
-
-  sidebarNav: {
-    padding: '24px 16px',
-    display: 'flex',
-    flexDirection: 'column',
-    flexGrow: 1,
-  } as React.CSSProperties,
-
-  navList: {
-    listStyle: 'none',
-    padding: 0,
-    margin: 0,
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '8px',
-  } as React.CSSProperties,
-
-  navListItem: {
-    margin: 0,
-    padding: 0,
-  } as React.CSSProperties,
-
-  navItem: {
-    width: '100%',
-    padding: '14px 20px',
-    backgroundColor: 'transparent',
-    border: 'none',
-    borderRadius: '12px',
-    color: 'rgba(255, 255, 255, 0.85)',
-    fontSize: '15px',
-    fontWeight: 600,
-    cursor: 'pointer',
-    display: 'flex',
-    alignItems: 'center',
-    textAlign: 'left',
-    transition: 'all 0.2s ease',
-  } as React.CSSProperties,
-
-  navItemActive: {
-    backgroundColor: '#ffffff',
-    color: '#F4A623',
-    boxShadow: '0 8px 16px rgba(0,0,0,0.06)',
-  } as React.CSSProperties,
-
-  sidebarFooter: {
-    padding: '24px 16px',
-    borderTop: '1px solid rgba(255, 255, 255, 0.15)',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '8px',
-  } as React.CSSProperties,
-
-  btnLogout: {
-    width: '100%',
-    padding: '14px 20px',
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    border: '1px solid rgba(255, 255, 255, 0.2)',
-    borderRadius: '12px',
-    color: '#ffffff',
-    fontSize: '15px',
-    fontWeight: 700,
-    cursor: 'pointer',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    transition: 'all 0.2s ease',
-  } as React.CSSProperties,
-
-  mainContent: {
-    flexGrow: 1,
-    paddingLeft: '280px',
-    display: 'flex',
-    flexDirection: 'column',
-    minWidth: 0,
-  } as React.CSSProperties,
-
-  headerBar: {
-    height: '76px',
-    backgroundColor: '#ffffff',
-    borderBottom: '1px solid #e2e8f0',
-    padding: '0 32px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    position: 'sticky',
-    top: 0,
-    zIndex: 1000,
-  } as React.CSSProperties,
-
-  headerKiri: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '16px',
-  } as React.CSSProperties,
-
-  btnHamburger: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    background: 'none',
-    border: 'none',
-    cursor: 'pointer',
-    color: '#2d3748',
-    padding: '8px',
-    borderRadius: '8px',
-    backgroundColor: '#f1f5f9',
-    WebkitAppearance: 'none',
-  } as React.CSSProperties,
-
-  headerGreeting: {
-    fontSize: '22px',
-    fontWeight: 800,
-    color: '#2d3748',
-    margin: 0,
-  } as React.CSSProperties,
-
-  headerKanan: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '24px',
-  } as React.CSSProperties,
-
-  statsIconGroup: {
-    display: 'flex',
-    gap: '12px',
-  } as React.CSSProperties,
-
-  statBadge: {
-    fontSize: '13px',
-    fontWeight: 700,
-    backgroundColor: '#fef3c7',
-    color: '#d97706',
-    padding: '8px 14px',
-    borderRadius: '100px',
-  } as React.CSSProperties,
-
-  statBadgeAmber: {
-    fontSize: '13px',
-    fontWeight: 700,
-    backgroundColor: '#eff6ff',
-    color: '#3b82f6',
-    padding: '8px 14px',
-    borderRadius: '100px',
-  } as React.CSSProperties,
-
-  profilInfo: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '12px',
-  } as React.CSSProperties,
-
-  avatarMini: {
-    width: '40px',
-    height: '40px',
-    borderRadius: '50%',
-    backgroundColor: '#F4A623',
-    color: '#ffffff',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    fontWeight: 800,
-    fontSize: '14px',
-    boxShadow: '0 4px 12px rgba(244, 166, 35, 0.2)',
-  } as React.CSSProperties,
-
-  contentBody: {
-    padding: '32px',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '32px',
-    maxWidth: '1200px',
-    width: '100%',
-    margin: '0 auto',
-  } as React.CSSProperties,
-
-  bannerInfo: {
-    background: 'linear-gradient(135deg, #F4A623 0%, #d97706 100%)',
-    borderRadius: '24px',
-    padding: '32px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: '24px',
-    flexWrap: 'wrap',
-    boxShadow: '0 10px 30px rgba(244, 166, 35, 0.15)',
-  } as React.CSSProperties,
-
-  bannerTeks: {
-    color: '#ffffff',
-    flex: 1,
-    minWidth: '280px',
-  } as React.CSSProperties,
-
-  bannerJudul: {
-    fontSize: '24px',
-    fontWeight: 850,
-    margin: '0 0 10px 0',
-    lineHeight: 1.2,
-  } as React.CSSProperties,
-
-  bannerSubjudul: {
-    fontSize: '14px',
-    color: 'rgba(255, 255, 255, 0.85)',
-    margin: 0,
-    lineHeight: 1.5,
-  } as React.CSSProperties,
-
-  btnBannerCta: {
-    backgroundColor: '#ffffff',
-    color: '#d97706',
-    border: 'none',
-    borderRadius: '14px',
-    padding: '14px 28px',
-    fontWeight: 700,
-    fontSize: '15px',
-    cursor: 'pointer',
-    boxShadow: '0 6px 20px rgba(0,0,0,0.06)',
-    transition: 'all 0.2s ease',
-  } as React.CSSProperties,
-
-  cardsGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(3, 1fr)',
-    gap: '24px',
-  } as React.CSSProperties,
-
-  kartuUtama: {
-    backgroundColor: '#ffffff',
-    borderRadius: '24px',
-    padding: '28px',
-    boxShadow: '0 4px 20px rgba(0, 0, 0, 0.02)',
-    border: '1px solid #e2e8f0',
-    display: 'flex',
-    flexDirection: 'column',
-  } as React.CSSProperties,
-
-  kartuJudul: {
-    fontSize: '16px',
-    fontWeight: 800,
-    color: '#2d3748',
-    margin: '0 0 20px 0',
-  } as React.CSSProperties,
-
-  levelWrapper: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: '12px',
-  } as React.CSSProperties,
-
-  levelBadge: {
-    fontSize: '12px',
-    fontWeight: 800,
-    backgroundColor: 'rgba(244, 166, 35, 0.1)',
-    color: '#d97706',
-    padding: '6px 12px',
-    borderRadius: '8px',
-  } as React.CSSProperties,
-
-  levelXp: {
-    fontSize: '13px',
-    fontWeight: 700,
-    color: '#718096',
-  } as React.CSSProperties,
-
-  progressBarBg: {
-    height: '10px',
-    backgroundColor: '#e2e8f0',
-    borderRadius: '100px',
-    overflow: 'hidden',
-    marginBottom: '16px',
-  } as React.CSSProperties,
-
-  progressBarFill: {
-    height: '100%',
-    backgroundColor: '#F4A623',
-    borderRadius: '100px',
-    transition: 'width 0.4s ease-out',
-  } as React.CSSProperties,
-
-  xpInfo: {
-    fontSize: '13px',
-    color: '#718096',
-    margin: 0,
-    lineHeight: 1.4,
-  } as React.CSSProperties,
-
-  questHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    fontSize: '13px',
-    fontWeight: 700,
-    color: '#718096',
-    marginBottom: '8px',
-  } as React.CSSProperties,
-
-  questProgressTeks: {
-    color: '#2d3748',
-  } as React.CSSProperties,
-
-  questPersen: {
-    color: '#F4A623',
-  } as React.CSSProperties,
-
-  questList: {
-    listStyle: 'none',
-    padding: 0,
-    margin: 0,
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '12px',
-  } as React.CSSProperties,
-
-  questItem: {
-    display: 'flex',
-    alignItems: 'flex-start',
-    gap: '10px',
-  } as React.CSSProperties,
-
-  questCheckSelesai: {
-    color: '#10b981',
-    fontWeight: 800,
-    fontSize: '14px',
-  } as React.CSSProperties,
-
-  questCheckBelum: {
-    color: '#a0aec0',
-    fontWeight: 800,
-    fontSize: '14px',
-  } as React.CSSProperties,
-
-  questItemTeksSelesai: {
-    fontSize: '13px',
-    color: '#a0aec0',
-    textDecoration: 'line-through',
-  } as React.CSSProperties,
-
-  questItemTeksBelum: {
-    fontSize: '13px',
-    color: '#4a5568',
-  } as React.CSSProperties,
-
-  rekomendasiList: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '12px',
-  } as React.CSSProperties,
-
-  rekomendasiItem: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: '16px 20px',
-    backgroundColor: '#f8fafc',
-    borderRadius: '16px',
-    border: '1px solid #e2e8f0',
-    cursor: 'pointer',
-    transition: 'all 0.25s ease',
-  } as React.CSSProperties,
-
-  rekomendasiInfo: {
-    flex: 1,
-  } as React.CSSProperties,
-
-  rekomendasiItemJudul: {
-    fontSize: '14px',
-    fontWeight: 750,
-    color: '#2d3748',
-    margin: '0 0 4px 0',
-    transition: 'color 0.2s ease',
-  } as React.CSSProperties,
-
-  rekomendasiItemSub: {
-    fontSize: '12px',
-    color: '#718096',
-    margin: 0,
-  } as React.CSSProperties,
-
-  rekomendasiArrow: {
-    color: '#94a3b8',
-    transition: 'all 0.25s ease',
-    flexShrink: 0,
-    marginLeft: '12px',
-  } as React.CSSProperties,
-
-  xpBadge: {
-    fontSize: '12px',
-    fontWeight: 800,
-    backgroundColor: '#ecfdf5',
-    color: '#10b981',
-    padding: '6px 12px',
-    borderRadius: '8px',
-  } as React.CSSProperties,
-
-  sectionBawah: {
-    width: '100%',
-  } as React.CSSProperties,
-
-  kartuLebar: {
-    backgroundColor: '#ffffff',
-    borderRadius: '24px',
-    padding: '28px',
-    boxShadow: '0 4px 20px rgba(0, 0, 0, 0.02)',
-    border: '1px solid #e2e8f0',
-  } as React.CSSProperties,
-
-  riwayatWrapper: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '12px',
-  } as React.CSSProperties,
-
-  riwayatItem: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: '16px',
-    borderBottom: '1px solid #f1f5f9',
-  } as React.CSSProperties,
-
-  riwayatInfoKiri: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '16px',
-  } as React.CSSProperties,
-
-  ikonBukuKecil: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: '20px',
-    height: '20px',
-    color: '#6366f1',
-    flexShrink: 0,
-    opacity: 0.95,
-  } as React.CSSProperties,
-
-  riwayatJudulTeks: {
-    fontSize: '14px',
-    fontWeight: 750,
-    color: '#2d3748',
-    margin: '0 0 4px 0',
-  } as React.CSSProperties,
-
-  riwayatKategori: {
-    fontSize: '12px',
-    color: '#718096',
-    margin: 0,
-  } as React.CSSProperties,
-
-  riwayatInfoKanan: {
-    display: 'flex',
-    alignItems: 'center',
-  } as React.CSSProperties,
-
-  skorBadge: {
-    fontSize: '13px',
-    fontWeight: 700,
-    padding: '6px 14px',
-    borderRadius: '100px',
-  } as React.CSSProperties,
-
-  kosongContainer: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: '40px 20px',
-    gap: '8px',
-  } as React.CSSProperties,
-
-  kosongIcon: {
-    fontSize: '48px',
-    marginBottom: '8px',
-  } as React.CSSProperties,
-
-  kosongText: {
-    fontSize: '16px',
-    color: '#64748b',
-    fontWeight: 500,
-    margin: 0,
-  } as React.CSSProperties,
-
-  kosongSubText: {
-    fontSize: '14px',
-    color: '#94a3b8',
-    margin: 0,
-  } as React.CSSProperties,
-
-  kosongButton: {
-    marginTop: '12px',
-    padding: '10px 24px',
-    backgroundColor: '#F4A623',
-    color: '#ffffff',
-    border: 'none',
-    borderRadius: '12px',
-    fontSize: '14px',
-    fontWeight: 700,
-    cursor: 'pointer',
-    transition: 'all 0.2s ease',
-  } as React.CSSProperties,
-};
 
 export default DashboardPage;

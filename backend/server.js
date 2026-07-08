@@ -13,7 +13,10 @@ import fs from 'fs';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-dotenv.config({ path: path.resolve(__dirname, '../.env') });
+const envPath = fs.existsSync(path.resolve(__dirname, '../.env')) 
+  ? path.resolve(__dirname, '../.env') 
+  : path.resolve(__dirname, '.env');
+dotenv.config({ path: envPath });
 
 import { registerRoutes } from './routes/auth.js';
 import { userRoutes } from './routes/users.js';
@@ -25,8 +28,8 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
 
-const DATA_DIR = path.join(__dirname, 'data');
-if (!fs.existsSync(DATA_DIR)) {
+const DATA_DIR = process.env.VERCEL ? '/tmp' : path.join(__dirname, 'data');
+if (!fs.existsSync(DATA_DIR) && !process.env.VERCEL) {
   fs.mkdirSync(DATA_DIR, { recursive: true });
 }
 
@@ -143,17 +146,16 @@ async function ensureSchema() {
 }
 
 async function initDb() {
+  if (db) return db;
   db = await open({
     filename: path.join(DATA_DIR, 'brainquest.db'),
     driver: sqlite3.Database,
   });
   globalThis.__brainquestDb = db;
   await ensureSchema();
-  console.log('✓ Database connected');
   return db;
 }
 
-// Middleware
 app.use(cors({
   origin: FRONTEND_URL,
   credentials: true,
@@ -173,31 +175,31 @@ app.use(session({
     secure: process.env.NODE_ENV === 'production',
     httpOnly: true,
     sameSite: 'lax',
-    maxAge: 24 * 60 * 60 * 1000, // 24 hours
+    maxAge: 24 * 60 * 60 * 1000,
   },
 }));
 
 app.use(passport.initialize());
 app.use(passport.session());
 
-// Make db accessible to routes
-app.use((req, res, next) => {
-  req.db = db;
-  next();
+app.use(async (req, res, next) => {
+  try {
+    req.db = await initDb();
+    next();
+  } catch (err) {
+    next(err);
+  }
 });
 
-// Routes
 app.use('/auth', registerRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/quiz', quizRoutes);
 app.use('/api/materials', materialRoutes);
 
-// Health check endpoint
 app.get('/health', (req, res) => {
   res.json({ status: 'OK', message: 'Backend is running' });
 });
 
-// Error handling middleware
 app.use((err, req, res, next) => {
   console.error('Error:', err);
   res.status(err.status || 500).json({
@@ -205,21 +207,19 @@ app.use((err, req, res, next) => {
   });
 });
 
-// Start server
-async function startServer() {
-  try {
-    await initDb();
-    app.listen(PORT, () => {
-      console.log(`\n🚀 BrainQuest Backend running on http://localhost:${PORT}`);
-      console.log(`📦 Frontend URL: ${FRONTEND_URL}`);
-      console.log(`📊 Health check: http://localhost:${PORT}/health\n`);
+if (!process.env.VERCEL) {
+  initDb()
+    .then(() => {
+      app.listen(PORT, () => {
+        console.log(`\n🚀 BrainQuest Backend running on http://localhost:${PORT}`);
+        console.log(`📦 Frontend URL: ${FRONTEND_URL}`);
+        console.log(`📊 Health check: http://localhost:${PORT}/health\n`);
+      });
+    })
+    .catch((err) => {
+      console.error('✗ Failed to start local server:', err);
+      process.exit(1);
     });
-  } catch (err) {
-    console.error('✗ Failed to start server:', err);
-    process.exit(1);
-  }
 }
-
-startServer();
 
 export default app;

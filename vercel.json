@@ -8,6 +8,11 @@
       "root": "backend"
     }
   },
+  "functions": {
+    "backend/*.js": {
+      "runtime": "vercel-node@latest"
+    }
+  },
   "rewrites": [
     {
       "source": "/api/(.*)",

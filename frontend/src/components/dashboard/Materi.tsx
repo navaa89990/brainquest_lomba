@@ -1,9 +1,9 @@
-import React, { useEffect, useMemo, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { BookOpen, CheckCircle2 } from 'lucide-react';
 import { useAuth } from '../../lib/useAuth';
-import { apiService } from '../../lib/apiService';
 import { useTheme } from '../../lib/ThemeContext';
+import { apiService } from '../../lib/apiService';
 
 interface MateriItem {
   id: number;
@@ -290,7 +290,7 @@ export default function Materi() {
       flexDirection: 'column' as const,
       alignItems: 'center',
       justifyContent: 'center',
-      padding: '60px 20px',
+      padding: '60px 24px',
       backgroundColor: colors.surface,
       borderRadius: '24px',
       border: `1px solid ${colors.border}`,
@@ -504,8 +504,8 @@ export default function Materi() {
 
         .card-header {
           display: flex;
-          justify-content: space-between;
-          align-items: flex-start;
+          justifyContent: space-between;
+          alignItems: flex-start;
           margin-bottom: 10px;
         }
 
@@ -514,7 +514,7 @@ export default function Materi() {
           height: 40px;
           border-radius: 12px;
           display: flex;
-          align-items: center;
+          alignItems: center;
           justifyContent: center;
           font-size: 14px;
           font-weight: 700;
@@ -551,7 +551,7 @@ export default function Materi() {
 
         .progress-header {
           display: flex;
-          justify-content: space-between;
+          justifyContent: space-between;
           font-size: 11px;
           font-weight: 600;
           color: ${colors.subtext};

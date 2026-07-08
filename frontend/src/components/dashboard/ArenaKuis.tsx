@@ -100,7 +100,7 @@ const ArenaKuis: React.FC = () => {
   const [pelajaranList, setPelajaranList] = useState<PelajaranKuis[]>([]);
   const [levelTerbuka, setLevelTerbuka] = useState<Record<string, number>>({});
   const [levelDipilih, setLevelDipilih] = useState<Record<string, number>>({});
-  const [refreshKey, setRefreshKey] = useState(0);
+  const [refreshKey] = useState(0);
 
   const cariProgress = (progressData: any[], lessonId: string, levelNumber: number) => {
     return progressData.find(
@@ -302,11 +302,6 @@ const ArenaKuis: React.FC = () => {
   const mulaiLevel = () => {
     if (!levelAktif) return;
     navigate(`/kuis/${levelAktif.id}`);
-  };
-
-  const isLevelCompleted = (levelId: number) => {
-    const level = pelajaranAktif?.level.find(l => l.id === levelId);
-    return level?.isCompleted || false;
   };
 
   const isLevelAvailable = (levelNumber: number) => {

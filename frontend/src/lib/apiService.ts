@@ -1,5 +1,5 @@
 // API Service untuk backend BrainQuest
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+const API_BASE_URL = 'https://brainquest-backend-q747.onrender.com';
 
 export const apiService = {
   // Auth endpoints

@@ -26,10 +26,10 @@ import { hashPassword } from './utils/auth.js';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
+const FRONTEND_URL = process.env.FRONTEND_URL || 'https://brainquestar.netlify.app';
 
-const DATA_DIR = process.env.VERCEL ? '/tmp' : path.join(__dirname, 'data');
-if (!fs.existsSync(DATA_DIR) && !process.env.VERCEL) {
+const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
+if (!fs.existsSync(DATA_DIR)) {
   fs.mkdirSync(DATA_DIR, { recursive: true });
 }
 
